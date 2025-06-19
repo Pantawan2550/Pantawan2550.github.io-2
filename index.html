@@ -20,9 +20,6 @@
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-    h1 {
-      margin-bottom: 10px;
-    }
     #clock {
       font-size: 16px;
       color: #555;
@@ -90,11 +87,12 @@
     }
   </style>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js"></script>
+  <!-- ✅ Firebase SDK แบบ compat (ทำงานกับ firebase.database ได้ทันที) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
+    // ✅ ตั้งค่า Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
@@ -107,6 +105,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ✅ แสดงเวลา
     function updateClock() {
       const now = new Date();
       document.getElementById("clock").textContent = now.toLocaleString();
@@ -114,6 +113,7 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // ✅ เพิ่มคิวใหม่
     function addQueue() {
       const number = document.getElementById("queueNumber").value;
       if (!number) return alert("กรุณากรอกหมายเลขคิว");
@@ -122,15 +122,18 @@
       document.getElementById("queueNumber").value = "";
     }
 
+    // ✅ ลบคิว (บันทึกเข้า history)
     function removeQueue(number) {
       const timeOut = new Date().toISOString();
       db.ref("queues/" + number).once("value").then(snapshot => {
         const data = snapshot.val();
+        if (!data) return;
         db.ref("history").push({ number: data.number, timeIn: data.timeIn, timeOut });
         db.ref("queues/" + number).remove();
       });
     }
 
+    // ✅ แสดงคิวทั้งหมด
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
@@ -150,6 +153,7 @@
       document.getElementById("availableQueues").textContent = `มีคิวในระบบ ${count} รายการ`;
     }
 
+    // ✅ ดาวน์โหลดข้อมูลเป็น CSV
     function downloadCSV() {
       db.ref("history").once("value", snapshot => {
         const data = snapshot.val();
@@ -170,6 +174,7 @@
       });
     }
 
+    // ✅ ซิงก์กับ Firebase แบบ real-time
     firebase.database().ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
       renderQueues(data);
