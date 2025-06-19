@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สถานะโต๊ะ</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    table { margin: auto; border-collapse: collapse; width: 90%; max-width: 800px; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    th { background: #eee; }
+  </style>
+</head>
+<body>
+  <h2>ข้อมูลการเข้า-ออกโต๊ะ</h2>
+  <table id="logTable">
+    <thead>
+      <tr><th>หมายเลขโต๊ะ</th><th>การกระทำ</th><th>เวลา</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    const logs = JSON.parse(localStorage.getItem("logs") || "[]");
+    const tbody = document.querySelector("#logTable tbody");
+    logs.forEach(log => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${log.table}</td><td>${log.action}</td><td>${log.time}</td>`;
+      tbody.appendChild(row);
+    });
+  </script>
+</body>
+</html>
