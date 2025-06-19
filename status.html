@@ -2,31 +2,58 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>สถานะโต๊ะ</title>
+  <title>ประวัติคิวเข้า-ออก</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    table { margin: auto; border-collapse: collapse; width: 90%; max-width: 800px; }
-    th, td { border: 1px solid #ccc; padding: 8px; }
-    th { background: #eee; }
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #333; color: white; }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
+      authDomain: "restaurant-waiting-list.firebaseapp.com",
+      databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "restaurant-waiting-list",
+      storageBucket: "restaurant-waiting-list.appspot.com",
+      messagingSenderId: "60559914247",
+      appId: "1:60559914247:web:76f651da714279231ac1a2"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    window.onload = () => {
+      db.ref("history").once("value", snapshot => {
+        const data = snapshot.val();
+        const table = document.getElementById("historyTable");
+        for (let id in data) {
+          const row = data[id];
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.number}</td>
+            <td>${new Date(row.timeIn).toLocaleString()}</td>
+            <td>${new Date(row.timeOut).toLocaleString()}</td>
+          `;
+          table.appendChild(tr);
+        }
+      });
+    };
+  </script>
 </head>
 <body>
-  <h2>ข้อมูลการเข้า-ออกโต๊ะ</h2>
-  <table id="logTable">
+  <h2>ประวัติคิวเข้า-ออก</h2>
+  <table>
     <thead>
-      <tr><th>หมายเลขโต๊ะ</th><th>การกระทำ</th><th>เวลา</th></tr>
+      <tr>
+        <th>หมายเลขคิว</th>
+        <th>เวลาเข้า</th>
+        <th>เวลาออก</th>
+      </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="historyTable"></tbody>
   </table>
-  <script>
-    const logs = JSON.parse(localStorage.getItem("logs") || "[]");
-    const tbody = document.querySelector("#logTable tbody");
-    logs.forEach(log => {
-      const row = document.createElement("tr");
-      row.innerHTML = `<td>${log.table}</td><td>${log.action}</td><td>${log.time}</td>`;
-      tbody.appendChild(row);
-    });
-  </script>
 </body>
 </html>
