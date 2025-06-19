@@ -13,31 +13,31 @@
       padding: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 800px;
       margin: auto;
       background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
     }
     .input-group {
       display: flex;
       justify-content: center;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 20px;
     }
     input {
       padding: 10px;
       font-size: 16px;
-      width: 180px;
+      width: 200px;
     }
     button {
       background-color: #28a745;
       color: white;
       border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
+      padding: 10px 20px;
       font-size: 16px;
+      border-radius: 6px;
       cursor: pointer;
     }
     button:hover {
@@ -47,28 +47,32 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
+      gap: 20px;
+      margin-top: 30px;
     }
     .queue-box {
       background-color: #d4edda;
-      border: 2px solid #333;
-      border-radius: 10px;
-      padding: 15px;
-      width: 120px;
+      border: 3px solid #333;
+      border-radius: 12px;
+      padding: 25px;
+      width: 200px;
       text-align: center;
-      font-weight: bold;
+      font-size: 18px;
       position: relative;
+    }
+    .queue-box p {
+      margin: 10px 0;
     }
     .remove-btn {
       background-color: #dc3545;
       color: white;
       border: none;
-      padding: 5px;
+      padding: 8px 12px;
+      font-size: 14px;
       border-radius: 5px;
       cursor: pointer;
       position: absolute;
-      bottom: 5px;
+      bottom: 10px;
       left: 50%;
       transform: translateX(-50%);
     }
@@ -76,9 +80,9 @@
       background-color: #c82333;
     }
     #clock {
-      font-size: 18px;
+      font-size: 20px;
       color: #555;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
     }
   </style>
 
@@ -87,6 +91,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -99,11 +104,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // Clock
     setInterval(() => {
       document.getElementById("clock").textContent =
         `เวลา: ${new Date().toLocaleTimeString("th-TH", { hour12: false })}`;
     }, 1000);
 
+    // Add queue
     function addQueue() {
       const number = document.getElementById("queueNumber").value.trim();
       if (!number) return alert("กรุณากรอกหมายเลขคิว");
@@ -113,16 +120,22 @@
       document.getElementById("queueNumber").value = "";
     }
 
+    // Remove queue (save to history)
     function removeQueue(number) {
       const timeOut = new Date().toISOString();
       db.ref("queues/" + number).once("value").then(snapshot => {
         const data = snapshot.val();
         if (!data) return;
-        db.ref("history").push({ number: data.number, timeIn: data.timeIn, timeOut });
+        db.ref("history").push({
+          number: data.number,
+          timeIn: data.timeIn,
+          timeOut: timeOut
+        });
         db.ref("queues/" + number).remove();
       });
     }
 
+    // Render queue list
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
@@ -135,14 +148,15 @@
         const box = document.createElement("div");
         box.className = "queue-box";
         box.innerHTML = `
-          <p>คิว ${q.number}</p>
-          <p>เข้า ${new Date(q.timeIn).toLocaleTimeString()}</p>
+          <p>หมายเลขคิว: ${q.number}</p>
+          <p>เวลาเข้า: ${new Date(q.timeIn).toLocaleTimeString("th-TH")}</p>
           <button class="remove-btn" onclick="removeQueue('${q.number}')">ออก</button>
         `;
         container.appendChild(box);
       }
     }
 
+    // Listen to Firebase changes
     db.ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
       renderQueues(data);
