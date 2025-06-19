@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบจัดการโต๊ะ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบจัดการคิว</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -37,6 +37,11 @@
     label {
       white-space: nowrap;
     }
+    input {
+      flex-grow: 1;
+      padding: 5px;
+      font-size: 16px;
+    }
     button {
       background-color: #28a745;
       color: white;
@@ -46,14 +51,14 @@
       cursor: pointer;
       transition: 0.3s;
     }
-    .table-container {
+    .queue-container {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
       margin-top: 20px;
     }
-    .table {
+    .queue {
       border: 2px solid #333;
       padding: 15px;
       border-radius: 10px;
@@ -75,15 +80,7 @@
       left: 50%;
       transform: translateX(-50%);
     }
-    .notification {
-      margin-top: 20px;
-      padding: 10px;
-      background-color: #333;
-      color: white;
-      border-radius: 5px;
-      display: none;
-    }
-    .available-tables {
+    .available-queues {
       margin-top: 20px;
       font-size: 18px;
     }
@@ -99,7 +96,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js"></script>
 
   <script>
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
@@ -110,8 +106,6 @@
       appId: "1:60559914247:web:76f651da714279231ac1a2",
       measurementId: "G-6H5ZK1J231"
     };
-
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -122,92 +116,81 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    function addTable() {
-      const tableNumber = document.getElementById("tableNumber").value;
-      if (!tableNumber) return;
-
-      const timestamp = new Date().toISOString();
-      db.ref("tables/" + tableNumber).set({
-        number: tableNumber,
-        timeIn: timestamp
-      });
-
-      document.getElementById("tableNumber").value = "";
+    function addQueue() {
+      const queueNumber = document.getElementById("queueNumber").value;
+      if (!queueNumber) return alert("กรุณากรอกหมายเลขคิว");
+      const timeIn = new Date().toISOString();
+      db.ref("queues/" + queueNumber).set({ number: queueNumber, timeIn });
+      document.getElementById("queueNumber").value = "";
     }
 
-    function removeTable(number) {
-      const timestamp = new Date().toISOString();
-      db.ref("tables/" + number + "/timeOut").set(timestamp);
-      db.ref("history").push({
-        number: number,
-        timeOut: timestamp
+    function removeQueue(number) {
+      const timeOut = new Date().toISOString();
+      db.ref("queues/" + number).once("value").then(snapshot => {
+        const data = snapshot.val();
+        db.ref("history").push({ number: data.number, timeIn: data.timeIn, timeOut });
+        db.ref("queues/" + number).remove();
       });
-      db.ref("tables/" + number).remove();
     }
 
-    function renderTables(data) {
-      const container = document.getElementById("tables");
+    function renderQueues(data) {
+      const container = document.getElementById("queues");
       container.innerHTML = "";
       let count = 0;
-
       for (let id in data) {
-        const table = data[id];
+        const q = data[id];
         const div = document.createElement("div");
-        div.className = "table";
+        div.className = "queue";
         div.innerHTML = `
-          โต๊ะ ${table.number}<br>
-          เข้า: ${new Date(table.timeIn).toLocaleTimeString()}
-          <button class="remove-btn" onclick="removeTable('${table.number}')">ออก</button>
+          คิว ${q.number}<br>
+          เข้า: ${new Date(q.timeIn).toLocaleTimeString()}
+          <button class="remove-btn" onclick="removeQueue('${q.number}')">ออก</button>
         `;
         container.appendChild(div);
         count++;
       }
-
-      document.getElementById("availableTables").textContent = `มีลูกค้า ${count} โต๊ะในระบบ`;
+      document.getElementById("availableQueues").textContent = `มีคิวในระบบ ${count} รายการ`;
     }
 
     function downloadCSV() {
-      db.ref("history").once("value", (snapshot) => {
+      db.ref("history").once("value", snapshot => {
         const data = snapshot.val();
-        if (!data) return alert("ไม่มีข้อมูลในระบบ");
+        if (!data) return alert("ไม่มีข้อมูลประวัติ");
 
-        const csv = [["หมายเลขโต๊ะ", "เวลาออก"]];
+        const csv = [["หมายเลขคิว", "เวลาเข้า", "เวลาออก"]];
         for (let id in data) {
-          const item = data[id];
-          csv.push([item.number, item.timeOut]);
+          const row = data[id];
+          csv.push([row.number, row.timeIn, row.timeOut]);
         }
-
-        const csvContent = "data:text/csv;charset=utf-8," + csv.map(e => e.join(",")).join("\n");
-        const encodedUri = encodeURI(csvContent);
+        const content = "data:text/csv;charset=utf-8," + csv.map(e => e.join(",")).join("\n");
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "table_history.csv");
+        link.setAttribute("href", encodeURI(content));
+        link.setAttribute("download", "queue_history.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       });
     }
 
-    firebase.database().ref("tables").on("value", (snapshot) => {
+    firebase.database().ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
-      renderTables(data);
+      renderQueues(data);
     });
   </script>
 </head>
 <body>
   <div class="container">
     <div id="clock"></div>
-    <h1>ระบบจัดการโต๊ะ</h1>
+    <h1>ระบบจัดการคิว</h1>
     <div class="input-group">
       <div class="input-item">
-        <label for="tableNumber">หมายเลขโต๊ะ:</label>
-        <input type="number" id="tableNumber" min="1" placeholder="หมายเลขโต๊ะ">
+        <label for="queueNumber">หมายเลขคิว:</label>
+        <input type="number" id="queueNumber" min="1" placeholder="หมายเลขคิว">
       </div>
-      <button onclick="addTable()">เพิ่มโต๊ะ</button>
+      <button onclick="addQueue()">เพิ่มคิว</button>
     </div>
-    <div class="notification" id="notification"></div>
-    <div class="table-container" id="tables"></div>
-    <div class="available-tables" id="availableTables"></div>
+    <div class="queue-container" id="queues"></div>
+    <div class="available-queues" id="availableQueues"></div>
     <br>
     <button onclick="downloadCSV()">📥 ดาวน์โหลดข้อมูล (CSV)</button>
     <p><a href="status.html" target="_blank">ดูประวัติการเข้า-ออก</a></p>
