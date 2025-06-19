@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการโต๊ะ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-item {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 300px;
+        }
+        label {
+            white-space: nowrap;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .table-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .table {
+            border: 2px solid #333;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: lightgreen;
+            width: 120px;
+            text-align: center;
+            font-weight: bold;
+            position: relative;
+        }
+        .remove-btn {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .notification {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border-radius: 5px;
+            display: none;
+        }
+        .available-tables {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        #clock {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="clock"></div>
+        <h1>ระบบจัดการโต๊ะ</h1>
+        <div class="input-group">
+            <div class="input-item">
+                <label for="tableNumber">หมายเลขโต๊ะ:</label>
+                <input type="number" id="tableNumber" placeholder="หมายเลขโต๊ะ" min="1">
+            </div>
+            <div class="input-item">
+                <label for="duration">ระยะเวลา (วินาที):</label>
+                <input type="number" id="duration" placeholder="ระยะเวลา" min="1" value="15">
+            </div>
+            <label><input type="checkbox" id="noLimit"> ไม่จำกัดเวลา</label>
+            <button onclick="addTable()">เพิ่มโต๊ะ</button>
+        </div>
+        <div class="notification" id="notification"></div>
+        <div class="table-container" id="tables"></div>
+        <div class="available-tables" id="availableTables"></div>
+    </div>
+
+
+    <!-- เสียงเตือนเมื่อหมดเวลา -->
+    <audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+
+
+    <script>
+        const tables = {};
+        const MAX_TABLES = 50;
+        const DEFAULT_DURATION = 15;
+        const alertSound = document.getElementById("alertSound");
+
+
+        // แสดงเวลาจริง
+        setInterval(() => {
+            document.getElementById("clock").textContent = `เวลา: ${getThaiTime()}`;
+        }, 1000);
+
+
+        function getThaiTime() {
+            return new Date().toLocaleTimeString("th-TH", { hour12: false });
+        }
+
+
+        function showNotification(message) {
+            const notification = document.getElementById("notification");
+            notification.textContent = message;
+            notification.style.display = "block";
+            setTimeout(() => {
+                notification.style.display = "none";
+            }, 3000);
+        }
+
+
+        function addTable() {
+            const tableNumber = parseInt(document.getElementById("tableNumber").value);
+            const duration = parseInt(document.getElementById("duration").value) || DEFAULT_DURATION;
+            const noLimit = document.getElementById("noLimit").checked;
+
+
+            if (isNaN(tableNumber) || tableNumber < 1) {
+                showNotification("หมายเลขโต๊ะต้องเป็นเลขที่มากกว่า 0!");
+                return;
+            }
+
+
+            if (tableNumber > MAX_TABLES) {
+                showNotification(`หมายเลขโต๊ะสูงสุดคือ ${MAX_TABLES}`);
+                return;
+            }
+
+
+            if (tables[tableNumber]) {
+                showNotification(`โต๊ะ ${tableNumber} มีลูกค้าอยู่แล้ว!`);
+                return;
+            }
+
+
+            if (Object.keys(tables).length >= MAX_TABLES) {
+                showNotification(`ขออภัย โต๊ะเต็มแล้ว!`);
+                return;
+            }
+
+
+            tables[tableNumber] = { remainingTime: noLimit ? null : duration, noLimit };
+            saveToLocalStorage();
+            showNotification(`[${getThaiTime()}] ลูกค้าเข้าไปที่โต๊ะ ${tableNumber} ${noLimit ? "(ไม่จำกัดเวลา)" : `และจะออกใน ${duration} วินาที`}`);
+            updateTables();
+
+
+            if (!noLimit) {
+                const interval = setInterval(() => {
+                    if (tables[tableNumber] && tables[tableNumber].remainingTime > 0) {
+                        tables[tableNumber].remainingTime--;
+                        updateTables();
+                        saveToLocalStorage();
+                    } else if (tables[tableNumber] && tables[tableNumber].remainingTime === 0) {
+                        alertSound.play();
+                        clearInterval(interval);
+                        removeTable(tableNumber);
+                    }
+                }, 1000);
+            }
+        }
+
+
+        function removeTable(tableNumber) {
+            if (tables[tableNumber] !== undefined) {
+                delete tables[tableNumber];
+                showNotification(`[${getThaiTime()}] ลูกค้าโต๊ะ ${tableNumber} ออกไป`);
+                updateTables();
+                saveToLocalStorage();
+            }
+        }
+
+
+        function updateTables() {
+            const tablesContainer = document.getElementById("tables");
+            tablesContainer.innerHTML = "";
+            Object.keys(tables).forEach(tableNumber => {
+                const tableData = tables[tableNumber];
+                const tableDiv = document.createElement("div");
+                tableDiv.classList.add("table");
+                tableDiv.innerHTML = `
+                    <p>โต๊ะ ${tableNumber}</p>
+                    <p>${tableData.noLimit ? "ไม่จำกัดเวลา" : `เหลือเวลา: ${tableData.remainingTime} วินาที`}</p>
+                    <button class="remove-btn" onclick="removeTable(${tableNumber})">ออก</button>
+                `;
+                tablesContainer.appendChild(tableDiv);
+            });
+
+
+            const availableTables = MAX_TABLES - Object.keys(tables).length;
+            document.getElementById("availableTables").textContent = `โต๊ะว่าง: ${availableTables} / ${MAX_TABLES}`;
+        }
+
+
+        function saveToLocalStorage() {
+            localStorage.setItem("tables", JSON.stringify(tables));
+        }
+
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem("tables");
+            if (saved) {
+                const restoredTables = JSON.parse(saved);
+                Object.keys(restoredTables).forEach(tableNumber => {
+                    const table = restoredTables[tableNumber];
+                    tables[tableNumber] = table;
+                    if (!table.noLimit && table.remainingTime > 0) {
+                        const interval = setInterval(() => {
+                            if (tables[tableNumber] && tables[tableNumber].remainingTime > 0) {
+                                tables[tableNumber].remainingTime--;
+                                updateTables();
+                                saveToLocalStorage();
+                            } else if (tables[tableNumber] && tables[tableNumber].remainingTime === 0) {
+                                alertSound.play();
+                                clearInterval(interval);
+                                removeTable(tableNumber);
+                            }
+                        }, 1000);
+                    }
+                });
+                updateTables();
+            }
+        }
+
+
+        // โหลดข้อมูลเมื่อเปิดหน้าเว็บ
+        window.onload = () => {
+            loadFromLocalStorage();
+        };
+    </script>
+</body>
+</html>
+
+
