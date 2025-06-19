@@ -93,6 +93,106 @@
       color: #555;
     }
   </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js"></script>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
+      authDomain: "restaurant-waiting-list.firebaseapp.com",
+      databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "restaurant-waiting-list",
+      storageBucket: "restaurant-waiting-list.appspot.com",
+      messagingSenderId: "60559914247",
+      appId: "1:60559914247:web:76f651da714279231ac1a2",
+      measurementId: "G-6H5ZK1J231"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").textContent = now.toLocaleString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function addTable() {
+      const tableNumber = document.getElementById("tableNumber").value;
+      if (!tableNumber) return;
+
+      const timestamp = new Date().toISOString();
+      db.ref("tables/" + tableNumber).set({
+        number: tableNumber,
+        timeIn: timestamp
+      });
+
+      document.getElementById("tableNumber").value = "";
+    }
+
+    function removeTable(number) {
+      const timestamp = new Date().toISOString();
+      db.ref("tables/" + number + "/timeOut").set(timestamp);
+      db.ref("history").push({
+        number: number,
+        timeOut: timestamp
+      });
+      db.ref("tables/" + number).remove();
+    }
+
+    function renderTables(data) {
+      const container = document.getElementById("tables");
+      container.innerHTML = "";
+      let count = 0;
+
+      for (let id in data) {
+        const table = data[id];
+        const div = document.createElement("div");
+        div.className = "table";
+        div.innerHTML = `
+          โต๊ะ ${table.number}<br>
+          เข้า: ${new Date(table.timeIn).toLocaleTimeString()}
+          <button class="remove-btn" onclick="removeTable('${table.number}')">ออก</button>
+        `;
+        container.appendChild(div);
+        count++;
+      }
+
+      document.getElementById("availableTables").textContent = `มีลูกค้า ${count} โต๊ะในระบบ`;
+    }
+
+    function downloadCSV() {
+      db.ref("history").once("value", (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return alert("ไม่มีข้อมูลในระบบ");
+
+        const csv = [["หมายเลขโต๊ะ", "เวลาออก"]];
+        for (let id in data) {
+          const item = data[id];
+          csv.push([item.number, item.timeOut]);
+        }
+
+        const csvContent = "data:text/csv;charset=utf-8," + csv.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "table_history.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
+
+    firebase.database().ref("tables").on("value", (snapshot) => {
+      const data = snapshot.val() || {};
+      renderTables(data);
+    });
+  </script>
 </head>
 <body>
   <div class="container">
@@ -112,6 +212,5 @@
     <button onclick="downloadCSV()">📥 ดาวน์โหลดข้อมูล (CSV)</button>
     <p><a href="status.html" target="_blank">ดูประวัติการเข้า-ออก</a></p>
   </div>
-  <script src="script.js"></script>
 </body>
 </html>
