@@ -87,12 +87,11 @@
     }
   </style>
 
-  <!-- ✅ Firebase SDK แบบ compat (ทำงานกับ firebase.database ได้ทันที) -->
+  <!-- ✅ Firebase SDK (แบบ compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
-    // ✅ ตั้งค่า Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
@@ -105,7 +104,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ✅ แสดงเวลา
     function updateClock() {
       const now = new Date();
       document.getElementById("clock").textContent = now.toLocaleString();
@@ -113,16 +111,19 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // ✅ เพิ่มคิวใหม่
     function addQueue() {
       const number = document.getElementById("queueNumber").value;
       if (!number) return alert("กรุณากรอกหมายเลขคิว");
       const timeIn = new Date().toISOString();
-      db.ref("queues/" + number).set({ number, timeIn });
-      document.getElementById("queueNumber").value = "";
+      db.ref("queues/" + number).set({ number, timeIn })
+        .then(() => {
+          document.getElementById("queueNumber").value = "";
+        })
+        .catch(error => {
+          alert("เกิดข้อผิดพลาดในการเพิ่มคิว: " + error.message);
+        });
     }
 
-    // ✅ ลบคิว (บันทึกเข้า history)
     function removeQueue(number) {
       const timeOut = new Date().toISOString();
       db.ref("queues/" + number).once("value").then(snapshot => {
@@ -133,7 +134,6 @@
       });
     }
 
-    // ✅ แสดงคิวทั้งหมด
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
@@ -153,7 +153,6 @@
       document.getElementById("availableQueues").textContent = `มีคิวในระบบ ${count} รายการ`;
     }
 
-    // ✅ ดาวน์โหลดข้อมูลเป็น CSV
     function downloadCSV() {
       db.ref("history").once("value", snapshot => {
         const data = snapshot.val();
@@ -174,8 +173,8 @@
       });
     }
 
-    // ✅ ซิงก์กับ Firebase แบบ real-time
-    firebase.database().ref("queues").on("value", snapshot => {
+    // 🔄 ซิงก์แบบ real-time
+    db.ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
       renderQueues(data);
     });
