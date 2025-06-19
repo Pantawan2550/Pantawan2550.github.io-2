@@ -54,14 +54,20 @@
       background-color: #d4edda;
       border: 3px solid #333;
       border-radius: 12px;
-      padding: 25px;
-      width: 200px;
+      width: 160px;
+      height: 160px;
       text-align: center;
-      font-size: 18px;
+      font-size: 20px;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 10px;
+      padding: 15px;
+      box-sizing: border-box;
     }
     .queue-box p {
-      margin: 10px 0;
+      margin: 0;
     }
     .remove-btn {
       background-color: #dc3545;
@@ -84,6 +90,16 @@
       color: #555;
       margin-bottom: 15px;
     }
+    a.history-link {
+      display: inline-block;
+      margin-top: 15px;
+      text-decoration: none;
+      color: #007bff;
+      font-weight: bold;
+    }
+    a.history-link:hover {
+      text-decoration: underline;
+    }
   </style>
 
   <!-- Firebase SDK -->
@@ -91,7 +107,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -104,13 +119,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Clock
     setInterval(() => {
       document.getElementById("clock").textContent =
         `เวลา: ${new Date().toLocaleTimeString("th-TH", { hour12: false })}`;
     }, 1000);
 
-    // Add queue
     function addQueue() {
       const number = document.getElementById("queueNumber").value.trim();
       if (!number) return alert("กรุณากรอกหมายเลขคิว");
@@ -120,7 +133,6 @@
       document.getElementById("queueNumber").value = "";
     }
 
-    // Remove queue (save to history)
     function removeQueue(number) {
       const timeOut = new Date().toISOString();
       db.ref("queues/" + number).once("value").then(snapshot => {
@@ -135,7 +147,6 @@
       });
     }
 
-    // Render queue list
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
@@ -148,15 +159,14 @@
         const box = document.createElement("div");
         box.className = "queue-box";
         box.innerHTML = `
-          <p>หมายเลขคิว: ${q.number}</p>
-          <p>เวลาเข้า: ${new Date(q.timeIn).toLocaleTimeString("th-TH")}</p>
+          <p>คิว ${q.number}</p>
+          <p>เข้า: ${new Date(q.timeIn).toLocaleTimeString("th-TH")}</p>
           <button class="remove-btn" onclick="removeQueue('${q.number}')">ออก</button>
         `;
         container.appendChild(box);
       }
     }
 
-    // Listen to Firebase changes
     db.ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
       renderQueues(data);
@@ -172,6 +182,8 @@
       <input type="number" id="queueNumber" placeholder="หมายเลขคิว" />
       <button onclick="addQueue()">เพิ่มคิว</button>
     </div>
+
+    <a href="status.html" class="history-link" target="_blank">ดูประวัติการเข้า-ออก</a>
 
     <div class="queue-container" id="queues"></div>
   </div>
