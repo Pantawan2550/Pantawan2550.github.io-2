@@ -4,21 +4,113 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบจัดการโต๊ะ</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .input-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .input-item {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 300px;
+    }
+    label {
+      white-space: nowrap;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .table-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .table {
+      border: 2px solid #333;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: lightgreen;
+      width: 120px;
+      text-align: center;
+      font-weight: bold;
+      position: relative;
+    }
+    .remove-btn {
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .notification {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #333;
+      color: white;
+      border-radius: 5px;
+      display: none;
+    }
+    .available-tables {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    #clock {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
+    <div id="clock"></div>
     <h1>ระบบจัดการโต๊ะ</h1>
     <div class="input-group">
-      <label for="tableNumber">หมายเลขโต๊ะ:</label>
-      <input type="number" id="tableNumber" min="1">
-      <button onclick="addTable()">เข้าโต๊ะ</button>
+      <div class="input-item">
+        <label for="tableNumber">หมายเลขโต๊ะ:</label>
+        <input type="number" id="tableNumber" min="1" placeholder="หมายเลขโต๊ะ">
+      </div>
+      <button onclick="addTable()">เพิ่มโต๊ะ</button>
     </div>
-    <div id="notification" class="notification"></div>
+    <div class="notification" id="notification"></div>
     <div class="table-container" id="tables"></div>
     <div class="available-tables" id="availableTables"></div>
+    <br>
     <button onclick="downloadCSV()">📥 ดาวน์โหลดข้อมูล (CSV)</button>
-    <p><a href="status.html" target="_blank">ดูสถานะการเข้า-ออก</a></p>
+    <p><a href="status.html" target="_blank">ดูประวัติการเข้า-ออก</a></p>
   </div>
   <script src="script.js"></script>
 </body>
