@@ -1,59 +1,124 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>ประวัติคิวเข้า-ออก</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ประวัติการเข้า-ออกคิว</title>
   <style>
-    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #333; color: white; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+    table {
+      margin: auto;
+      border-collapse: collapse;
+      width: 90%;
+      max-width: 800px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #ddd;
+      font-size: 16px;
+    }
+    th {
+      background-color: #28a745;
+      color: white;
+    }
+    tr:hover {
+      background-color: #e9f5ea;
+    }
+    caption {
+      font-size: 22px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      color: #333;
+    }
+    #refreshBtn {
+      margin: 20px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #28a745;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #refreshBtn:hover {
+      background-color: #218838;
+    }
   </style>
+
   <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
+
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
-      authDomain: "restaurant-waiting-list.firebaseapp.com",
-      databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "restaurant-waiting-list",
-      storageBucket: "restaurant-waiting-list.appspot.com",
-      messagingSenderId: "60559914247",
-      appId: "1:60559914247:web:76f651da714279231ac1a2"
+      apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
+      authDomain: "queue-management-system-79b27.firebaseapp.com",
+      databaseURL: "https://queue-management-system-79b27-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "queue-management-system-79b27",
+      storageBucket: "queue-management-system-79b27.appspot.com",
+      messagingSenderId: "76344006886",
+      appId: "1:76344006886:web:a93cdee9adf70b43e30327"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    window.onload = () => {
-      db.ref("history").once("value", snapshot => {
+    function formatTime(time) {
+      if (!time) return "-";
+      return new Date(time).toLocaleString("th-TH");
+    }
+
+    function loadHistory() {
+      const tbody = document.getElementById("historyBody");
+      tbody.innerHTML = "<tr><td colspan='3'>กำลังโหลดข้อมูล...</td></tr>";
+      db.ref("history").once("value").then(snapshot => {
         const data = snapshot.val();
-        const table = document.getElementById("historyTable");
-        for (let id in data) {
-          const row = data[id];
+        tbody.innerHTML = "";
+        if (!data) {
+          tbody.innerHTML = "<tr><td colspan='3'>ไม่มีประวัติข้อมูล</td></tr>";
+          return;
+        }
+
+        // แปลง object เป็น array และเรียงเวลาล่าสุดก่อน
+        const arr = Object.values(data).sort((a, b) => new Date(b.timeOut) - new Date(a.timeOut));
+
+        for (const item of arr) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${row.number}</td>
-            <td>${new Date(row.timeIn).toLocaleString()}</td>
-            <td>${new Date(row.timeOut).toLocaleString()}</td>
+            <td>${item.number}</td>
+            <td>${formatTime(item.timeIn)}</td>
+            <td>${formatTime(item.timeOut)}</td>
           `;
-          table.appendChild(tr);
+          tbody.appendChild(tr);
         }
       });
-    };
+    }
+
+    window.onload = loadHistory;
   </script>
 </head>
 <body>
-  <h2>ประวัติคิวเข้า-ออก</h2>
+  <h2>ประวัติการเข้า-ออกคิว</h2>
+  <button id="refreshBtn" onclick="loadHistory()">รีเฟรชข้อมูล</button>
   <table>
     <thead>
       <tr>
-        <th>หมายเลขคิว</th>
+        <th>คิว</th>
         <th>เวลาเข้า</th>
         <th>เวลาออก</th>
       </tr>
     </thead>
-    <tbody id="historyTable"></tbody>
+    <tbody id="historyBody">
+      <tr><td colspan="3">กำลังโหลดข้อมูล...</td></tr>
+    </tbody>
   </table>
 </body>
 </html>
