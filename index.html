@@ -149,7 +149,7 @@
         db.ref("history").push(historyEntry);
 
         // ส่งข้อมูลไป Google Sheets ผ่าน Apps Script Web App
-        fetch("https://script.google.com/macros/s/AKfycbzwGFX4YvgK1hcV8HX55Poii97lMp36SLdM1eLhiUatXE1rhY9WAIsWrJV9DoPxt4361w/exec", {
+        fetch("https://script.google.com/macros/s/AKfycbwmg_JnzGDuU-T3hL0A6R9pTsxMh454uH8e5-nP4P0wxEaaEDzuL9ftbpdpSQ5_B4ZbDg/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
