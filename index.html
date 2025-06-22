@@ -138,11 +138,31 @@
       db.ref("queues/" + number).once("value").then(snapshot => {
         const data = snapshot.val();
         if (!data) return;
-        db.ref("history").push({
+
+        const historyEntry = {
           number: data.number,
           timeIn: data.timeIn,
           timeOut: timeOut
-        });
+        };
+
+        // บันทึกประวัติลง Firebase
+        db.ref("history").push(historyEntry);
+
+        // ส่งข้อมูลไป Google Sheets ผ่าน Apps Script Web App
+        fetch("https://script.google.com/macros/s/AKfycbzwGFX4YvgK1hcV8HX55Poii97lMp36SLdM1eLhiUatXE1rhY9WAIsWrJV9DoPxt4361w/exec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            queueNumber: historyEntry.number,
+            timeIn: historyEntry.timeIn,
+            timeOut: historyEntry.timeOut
+          })
+        })
+        .then(res => res.text())
+        .then(txt => console.log("ส่งข้อมูลไป Google Sheets:", txt))
+        .catch(err => console.error("ส่งข้อมูลผิดพลาด:", err));
+
+        // ลบคิวออกจากคิวปัจจุบัน
         db.ref("queues/" + number).remove();
       });
     }
