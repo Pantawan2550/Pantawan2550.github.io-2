@@ -1,26 +1,27 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ระบบการจัดการคิว (สำหรับเก็บข้อมูล)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ประวัติการเข้า-ออกคิว</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f9f9f9;
-      text-align: center;
+      background-color: #eef2f7;
+      margin: 0;
       padding: 20px;
+      text-align: center;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: auto;
       background: white;
-      padding: 25px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
     h2 {
-      margin-bottom: 10px;
+      margin-bottom: 20px;
     }
     table {
       width: 100%;
@@ -28,25 +29,16 @@
       margin-top: 20px;
     }
     th, td {
+      border: 1px solid #ccc;
       padding: 12px;
-      border: 1px solid #ddd;
+      font-size: 16px;
     }
     th {
       background-color: #007bff;
       color: white;
     }
-    button {
-      padding: 10px 18px;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    button:hover {
-      background-color: #c82333;
+    td {
+      background-color: #f9f9f9;
     }
   </style>
 
@@ -67,47 +59,26 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    function formatTime(isoString) {
-      if (!isoString) return "-";
-      return new Date(isoString).toLocaleTimeString("th-TH", { hour12: false });
-    }
+    window.onload = function () {
+      const tbody = document.getElementById("historyBody");
 
-    function loadHistory() {
-      const tbody = document.getElementById("historyTableBody");
-      tbody.innerHTML = "<tr><td colspan='3'>กำลังโหลด...</td></tr>";
-
-      db.ref("history").once("value", snapshot => {
+      db.ref("history").on("value", snapshot => {
         const data = snapshot.val() || {};
-        const entries = Object.values(data).sort((a, b) => new Date(a.timeIn) - new Date(b.timeIn));
+        const rows = Object.values(data).sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
 
         tbody.innerHTML = "";
-
-        entries.forEach(entry => {
+        for (let item of rows) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${entry.number}</td>
-            <td>${formatTime(entry.timeIn)}</td>
-            <td>${formatTime(entry.timeOut)}</td>
+            <td>${item.number}</td>
+            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : '-'}</td>
+            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : '-'}</td>
+            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : '-'}</td>
           `;
           tbody.appendChild(tr);
-        });
-
-        if (entries.length === 0) {
-          tbody.innerHTML = "<tr><td colspan='3'>ไม่มีข้อมูล</td></tr>";
         }
       });
-    }
-
-    function resetHistory() {
-      if (confirm("คุณต้องการล้างประวัติทั้งหมดหรือไม่?")) {
-        db.ref("history").remove().then(() => {
-          loadHistory();
-          alert("ล้างประวัติเรียบร้อยแล้ว");
-        });
-      }
-    }
-
-    window.onload = loadHistory;
+    };
   </script>
 </head>
 <body>
@@ -118,15 +89,14 @@
         <tr>
           <th>หมายเลขคิว</th>
           <th>เวลาเข้า</th>
+          <th>เวลาเริ่มให้บริการ</th>
           <th>เวลาออก</th>
         </tr>
       </thead>
-      <tbody id="historyTableBody">
-        <tr><td colspan="3">กำลังโหลด...</td></tr>
+      <tbody id="historyBody">
+        <!-- ประวัติคิวจะถูกแสดงที่นี่ -->
       </tbody>
     </table>
-
-    <button onclick="resetHistory()">🗑 ล้างประวัติทั้งหมด</button>
   </div>
 </body>
 </html>
