@@ -45,6 +45,7 @@
       display: flex;
       justify-content: center;
       gap: 15px;
+      flex-wrap: wrap;
     }
     button {
       padding: 12px 24px;
@@ -54,6 +55,13 @@
       cursor: pointer;
       font-weight: bold;
       color: white;
+      min-width: 180px;
+    }
+    .sort-btn {
+      background-color: #007bff;
+    }
+    .sort-btn:hover {
+      background-color: #0056b3;
     }
     .clear-btn {
       background-color: #dc3545;
@@ -74,7 +82,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -87,6 +94,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    let sortAsc = false; // เริ่มต้นเรียงจากใหม่→เก่า (มาก→น้อย)
+
     function backupAndClear() {
       if (!confirm("ยืนยันการล้างประวัติแบบสำรองก่อน?")) return;
 
@@ -96,7 +105,6 @@
           alert("ไม่มีข้อมูลประวัติให้สำรอง");
           return;
         }
-        // สร้าง timestamp สำหรับโฟลเดอร์สำรอง
         const timestamp = new Date().toISOString().replace(/[-:.]/g,"").slice(0,15);
         const backupRef = db.ref("history_backup/" + timestamp);
 
@@ -120,7 +128,6 @@
         const lastBackupKey = Object.keys(backups)[0];
         const lastBackupData = backups[lastBackupKey];
 
-        // ลบข้อมูลปัจจุบัน แล้วกู้คืนข้อมูลจาก backup
         db.ref("history").remove().then(() => {
           return db.ref("history").set(lastBackupData);
         }).then(() => {
@@ -129,28 +136,46 @@
       });
     }
 
-    window.onload = function () {
+    function toggleSort() {
+      sortAsc = !sortAsc;
+      renderTable(currentData);
+      const btn = document.getElementById("sortBtn");
+      btn.textContent = sortAsc ? "เรียงเวลาเข้า: น้อย → มาก" : "เรียงเวลาเข้า: มาก → น้อย";
+    }
+
+    let currentData = [];
+
+    function renderTable(data) {
       const tbody = document.getElementById("historyBody");
-
-      // ดึงข้อมูล history และแสดงตาราง
-      db.ref("history").on("value", snapshot => {
-        const data = snapshot.val() || {};
-        const rows = Object.values(data)
-          .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn)); // เรียงเวลาเข้าใหม่ล่าสุดบนสุด
-
-        tbody.innerHTML = "";
-
-        for (let item of rows) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.number}</td>
-            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
-            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
-            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
-          `;
-          tbody.appendChild(tr);
-        }
+      // sort by timeIn ตามสถานะ sortAsc
+      const sorted = data.slice().sort((a,b) => {
+        const tA = new Date(a.timeIn).getTime();
+        const tB = new Date(b.timeIn).getTime();
+        return sortAsc ? tA - tB : tB - tA;
       });
+
+      tbody.innerHTML = "";
+      for (const item of sorted) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.number}</td>
+          <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
+          <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
+          <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    window.onload = function() {
+      const tbody = document.getElementById("historyBody");
+      db.ref("history").on("value", snapshot => {
+        currentData = Object.values(snapshot.val() || {});
+        renderTable(currentData);
+      });
+
+      // ตั้งชื่อปุ่มเริ่มต้น
+      document.getElementById("sortBtn").textContent = "เรียงเวลาเข้า: มาก → น้อย";
     };
   </script>
 </head>
@@ -168,7 +193,9 @@
       </thead>
       <tbody id="historyBody"></tbody>
     </table>
+
     <div class="btn-group">
+      <button id="sortBtn" class="sort-btn" onclick="toggleSort()"></button>
       <button class="clear-btn" onclick="backupAndClear()">ล้างประวัติแบบกู้คืนได้</button>
       <button class="restore-btn" onclick="restoreBackup()">กู้คืนประวัติจากสำรองล่าสุด</button>
     </div>
