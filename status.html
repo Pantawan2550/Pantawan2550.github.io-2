@@ -26,7 +26,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 10px;
     }
     th, td {
       border: 1px solid #ccc;
@@ -40,6 +40,19 @@
     td {
       background-color: #f9f9f9;
     }
+    .clear-btn {
+      margin-top: 20px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .clear-btn:hover {
+      background-color: #c82333;
+    }
   </style>
 
   <!-- Firebase SDK -->
@@ -47,6 +60,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
+    // Firebase configuration (เหมือนกับ index.html)
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -59,21 +73,35 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ฟังก์ชันล้างประวัติ
+    function clearHistory() {
+      if (confirm("ยืนยันการล้างประวัติทั้งหมด? การดำเนินการนี้ไม่สามารถกู้คืนได้")) {
+        db.ref("history").remove()
+          .then(() => alert("ล้างประวัติเรียบร้อยแล้ว"))
+          .catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
+      }
+    }
+
     window.onload = function () {
       const tbody = document.getElementById("historyBody");
 
+      // ดึงข้อมูล history แบบเรียลไทม์
       db.ref("history").on("value", snapshot => {
         const data = snapshot.val() || {};
-        const rows = Object.values(data).sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
+        const rows = Object.values(data)
+          .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
 
+        // ล้างตารางเดิม
         tbody.innerHTML = "";
+
+        // สร้างแถวใหม่
         for (let item of rows) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${item.number}</td>
-            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : '-'}</td>
-            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : '-'}</td>
-            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : '-'}</td>
+            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
+            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
+            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
           `;
           tbody.appendChild(tr);
         }
@@ -94,9 +122,12 @@
         </tr>
       </thead>
       <tbody id="historyBody">
-        <!-- ประวัติคิวจะถูกแสดงที่นี่ -->
+        <!-- ข้อมูลประวัติจะขึ้นตรงนี้ -->
       </tbody>
     </table>
+
+    <!-- ปุ่มล้างข้อมูลไว้ด้านล่าง -->
+    <button class="clear-btn" onclick="clearHistory()">ล้างประวัติทั้งหมด</button>
   </div>
 </body>
 </html>
