@@ -60,7 +60,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase configuration (เหมือนกับ index.html)
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -89,7 +89,7 @@
       db.ref("history").on("value", snapshot => {
         const data = snapshot.val() || {};
         const rows = Object.values(data)
-          .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
+          .sort((a, b) => new Date(a.timeIn) - new Date(b.timeIn)); // เรียงจากเร็ว -> ช้า
 
         // ล้างตารางเดิม
         tbody.innerHTML = "";
