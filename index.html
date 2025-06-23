@@ -13,7 +13,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
       background: white;
       padding: 30px;
@@ -43,48 +43,6 @@
     button:hover {
       background-color: #218838;
     }
-    .queue-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .queue-box {
-      background-color: #d4edda;
-      border: 3px solid #333;
-      border-radius: 12px;
-      width: 160px;
-      height: 160px;
-      text-align: center;
-      font-size: 20px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 10px;
-      padding: 15px;
-      box-sizing: border-box;
-    }
-    .queue-box p {
-      margin: 0;
-    }
-    .remove-btn {
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      font-size: 14px;
-      border-radius: 5px;
-      cursor: pointer;
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    .remove-btn:hover {
-      background-color: #c82333;
-    }
     #clock {
       font-size: 20px;
       color: #555;
@@ -99,6 +57,37 @@
     }
     a.history-link:hover {
       text-decoration: underline;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      font-size: 16px;
+    }
+    th {
+      background-color: #28a745;
+      color: white;
+    }
+    .action-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .action-btn:hover {
+      background-color: #0056b3;
+    }
+    .action-btn.disabled {
+      background-color: #ccc;
+      color: #666;
+      cursor: not-allowed;
     }
   </style>
 
@@ -119,74 +108,110 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // นาฬิกา
     setInterval(() => {
       document.getElementById("clock").textContent =
         `เวลา: ${new Date().toLocaleTimeString("th-TH", { hour12: false })}`;
     }, 1000);
 
+    // เพิ่มคิวใหม่
     function addQueue() {
       const number = document.getElementById("queueNumber").value.trim();
       if (!number) return alert("กรุณากรอกหมายเลขคิว");
 
       const timeIn = new Date().toISOString();
-      db.ref("queues/" + number).set({ number, timeIn });
+      db.ref("queues/" + number).set({ number, timeIn, served: false });
       document.getElementById("queueNumber").value = "";
     }
 
-    function removeQueue(number) {
-      const timeOut = new Date().toISOString();
-      db.ref("queues/" + number).once("value").then(snapshot => {
-        const data = snapshot.val();
-        if (!data) return;
+    // เริ่มให้บริการ
+    function startService(number) {
+      const now = new Date().toISOString();
+      const ref = db.ref("queues/" + number);
 
-        const historyEntry = {
+      ref.once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (!data || data.served) return;
+
+        const history = {
           number: data.number,
           timeIn: data.timeIn,
-          timeOut: timeOut
+          timeOut: now
         };
 
-        // บันทึกประวัติลง Firebase
-        db.ref("history").push(historyEntry);
+        // บันทึกไป history
+        db.ref("history").push(history);
 
-        // ส่งข้อมูลไป Google Sheets ผ่าน Apps Script Web App
+        // ส่งไป Google Sheets
         fetch("https://script.google.com/macros/s/AKfycbwmg_JnzGDuU-T3hL0A6R9pTsxMh454uH8e5-nP4P0wxEaaEDzuL9ftbpdpSQ5_B4ZbDg/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            queueNumber: historyEntry.number,
-            timeIn: historyEntry.timeIn,
-            timeOut: historyEntry.timeOut
-          })
+          body: JSON.stringify(history)
         })
         .then(res => res.text())
         .then(txt => console.log("ส่งข้อมูลไป Google Sheets:", txt))
-        .catch(err => console.error("ส่งข้อมูลผิดพลาด:", err));
+        .catch(err => console.error("ผิดพลาด:", err));
 
-        // ลบคิวออกจากคิวปัจจุบัน
-        db.ref("queues/" + number).remove();
+        // อัปเดตสถานะ
+        ref.update({ served: true });
       });
     }
 
+    // ออกคิว
+    function removeQueue(number) {
+      db.ref("queues/" + number).remove();
+    }
+
+    // แสดงรายการคิว
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
+
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
+        <tr>
+          <th>หมายเลขคิว</th>
+          <th>เวลาเข้า</th>
+          <th>สถานะ</th>
+          <th>จัดการ</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
 
       const sorted = Object.entries(data).sort((a, b) => {
         return new Date(a[1].timeIn) - new Date(b[1].timeIn);
       });
 
       for (let [id, q] of sorted) {
-        const box = document.createElement("div");
-        box.className = "queue-box";
-        box.innerHTML = `
-          <p>คิว ${q.number}</p>
-          <p>เข้า: ${new Date(q.timeIn).toLocaleTimeString("th-TH")}</p>
-          <button class="remove-btn" onclick="removeQueue('${q.number}')">ออก</button>
+        const isServed = q.served === true;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${q.number}</td>
+          <td>${new Date(q.timeIn).toLocaleTimeString("th-TH")}</td>
+          <td>${isServed ? "กำลังให้บริการ" : "รอคิว"}</td>
+          <td>
+            <button class="action-btn ${isServed ? 'disabled' : ''}" 
+              onclick="${isServed ? '' : `startService('${q.number}')`}" 
+              ${isServed ? 'disabled' : ''}>
+              เริ่มให้บริการ
+            </button>
+            <button class="action-btn" style="background-color:#dc3545; margin-left:8px;" 
+              onclick="removeQueue('${q.number}')">
+              ออก
+            </button>
+          </td>
         `;
-        container.appendChild(box);
+        tbody.appendChild(tr);
       }
+
+      table.appendChild(tbody);
+      container.appendChild(table);
     }
 
+    // ซิงค์ข้อมูลแบบเรียลไทม์
     db.ref("queues").on("value", snapshot => {
       const data = snapshot.val() || {};
       renderQueues(data);
@@ -205,7 +230,7 @@
 
     <a href="status.html" class="history-link" target="_blank">ดูประวัติการเข้า-ออก</a>
 
-    <div class="queue-container" id="queues"></div>
+    <div id="queues"></div>
   </div>
 </body>
 </html>
