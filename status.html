@@ -21,7 +21,29 @@
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
     h2 {
+      margin-bottom: 10px;
+    }
+    .controls {
       margin-bottom: 20px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .clear-btn {
+      background-color: #dc3545;
+    }
+    .clear-btn:hover {
+      background-color: #c82333;
     }
     table {
       width: 100%;
@@ -40,79 +62,25 @@
     td {
       background-color: #f9f9f9;
     }
-    .clear-btn {
-      margin-top: 20px;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .clear-btn:hover {
-      background-color: #c82333;
-    }
   </style>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
-  <script>
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
-      authDomain: "queue-management-system-79b27.firebaseapp.com",
-      databaseURL: "https://queue-management-system-79b27-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "queue-management-system-79b27",
-      storageBucket: "queue-management-system-79b27.appspot.com",
-      messagingSenderId: "76344006886",
-      appId: "1:76344006886:web:a93cdee9adf70b43e30327"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // ฟังก์ชันล้างประวัติ
-    function clearHistory() {
-      if (confirm("ยืนยันการล้างประวัติทั้งหมด? การดำเนินการนี้ไม่สามารถกู้คืนได้")) {
-        db.ref("history").remove()
-          .then(() => alert("ล้างประวัติเรียบร้อยแล้ว"))
-          .catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
-      }
-    }
-
-    window.onload = function () {
-      const tbody = document.getElementById("historyBody");
-
-      // ดึงข้อมูล history แบบเรียลไทม์
-      db.ref("history").on("value", snapshot => {
-        const data = snapshot.val() || {};
-        const rows = Object.values(data)
-          .sort((a, b) => new Date(a.timeIn) - new Date(b.timeIn)); // เรียงจากเร็ว -> ช้า
-
-        // ล้างตารางเดิม
-        tbody.innerHTML = "";
-
-        // สร้างแถวใหม่
-        for (let item of rows) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.number}</td>
-            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
-            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
-            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
-          `;
-          tbody.appendChild(tr);
-        }
-      });
-    };
-  </script>
 </head>
 <body>
   <div class="container">
     <h2>ประวัติการเข้า-ออกคิว</h2>
-    <table>
+
+    <div class="controls">
+      <button onclick="sortHistory('asc')">เรียงเวลาเข้า จากน้อยไปมาก</button>
+      <button onclick="sortHistory('desc')">เรียงเวลาเข้า จากมากไปน้อย</button>
+      <button onclick="downloadExcel()">ดาวน์โหลด Excel</button>
+      <button class="clear-btn" onclick="clearHistory()">ล้างประวัติทั้งหมด</button>
+    </div>
+
+    <table id="historyTable">
       <thead>
         <tr>
           <th>หมายเลขคิว</th>
@@ -125,9 +93,73 @@
         <!-- ข้อมูลประวัติจะขึ้นตรงนี้ -->
       </tbody>
     </table>
-
-    <!-- ปุ่มล้างข้อมูลไว้ด้านล่าง -->
-    <button class="clear-btn" onclick="clearHistory()">ล้างประวัติทั้งหมด</button>
   </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
+      authDomain: "queue-management-system-79b27.firebaseapp.com",
+      databaseURL: "https://queue-management-system-79b27-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "queue-management-system-79b27",
+      storageBucket: "queue-management-system-79b27.appspot.com",
+      messagingSenderId: "76344006886",
+      appId: "1:76344006886:web:a93cdee9adf70b43e30327"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let historyData = [];
+
+    function renderTable(data) {
+      const tbody = document.getElementById("historyBody");
+      tbody.innerHTML = "";
+      for (let item of data) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.number}</td>
+          <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
+          <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
+          <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function sortHistory(order = "asc") {
+      const sorted = [...historyData].sort((a, b) => {
+        const timeA = new Date(a.timeIn);
+        const timeB = new Date(b.timeIn);
+        return order === "asc" ? timeA - timeB : timeB - timeA;
+      });
+      renderTable(sorted);
+    }
+
+    function clearHistory() {
+      if (confirm("ยืนยันการล้างประวัติทั้งหมด? การดำเนินการนี้ไม่สามารถกู้คืนได้")) {
+        db.ref("history").remove()
+          .then(() => alert("ล้างประวัติเรียบร้อยแล้ว"))
+          .catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
+      }
+    }
+
+    function downloadExcel() {
+      const table = document.getElementById("historyTable").outerHTML;
+      const blob = new Blob([table], { type: "application/vnd.ms-excel" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ประวัติการเข้าออกคิว.xls";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = function () {
+      db.ref("history").on("value", snapshot => {
+        const data = snapshot.val() || {};
+        historyData = Object.values(data);
+        sortHistory("asc"); // เริ่มต้นเรียงจากน้อย → มาก
+      });
+    };
+  </script>
 </body>
 </html>
