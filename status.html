@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ประวัติการเข้า-ออกคิว</title>
   <style>
     body {
@@ -40,21 +40,20 @@
     td {
       background-color: #f9f9f9;
     }
-    .controls {
+    .btn-group {
       margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
     }
     button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      font-size: 14px;
+      padding: 12px 24px;
+      font-size: 16px;
       border-radius: 6px;
+      border: none;
       cursor: pointer;
-      margin: 5px;
-    }
-    button:hover {
-      background-color: #0056b3;
+      font-weight: bold;
+      color: white;
     }
     .clear-btn {
       background-color: #dc3545;
@@ -62,40 +61,20 @@
     .clear-btn:hover {
       background-color: #c82333;
     }
+    .restore-btn {
+      background-color: #28a745;
+    }
+    .restore-btn:hover {
+      background-color: #1e7e34;
+    }
   </style>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
-</head>
-<body>
-  <div class="container">
-    <h2>ประวัติการเข้า-ออกคิว</h2>
-
-    <table id="historyTable">
-      <thead>
-        <tr>
-          <th>หมายเลขคิว</th>
-          <th>เวลาเข้า</th>
-          <th>เวลาเริ่มให้บริการ</th>
-          <th>เวลาออก</th>
-        </tr>
-      </thead>
-      <tbody id="historyBody">
-        <!-- ข้อมูลประวัติจะขึ้นตรงนี้ -->
-      </tbody>
-    </table>
-
-    <!-- ✅ ปุ่มทั้งหมดอยู่ด้านล่าง -->
-    <div class="controls">
-      <button onclick="sortHistory('asc')">เรียงเวลาเข้า จากน้อยไปมาก</button>
-      <button onclick="sortHistory('desc')">เรียงเวลาเข้า จากมากไปน้อย</button>
-      <button onclick="downloadExcel()">ดาวน์โหลด Excel</button>
-      <button class="clear-btn" onclick="clearHistory()">ล้างประวัติทั้งหมด</button>
-    </div>
-  </div>
 
   <script>
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -108,58 +87,91 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let historyData = [];
+    function backupAndClear() {
+      if (!confirm("ยืนยันการล้างประวัติแบบสำรองก่อน?")) return;
 
-    function renderTable(data) {
-      const tbody = document.getElementById("historyBody");
-      tbody.innerHTML = "";
-      for (let item of data) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.number}</td>
-          <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
-          <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
-          <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
-        `;
-        tbody.appendChild(tr);
-      }
-    }
+      db.ref("history").once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+          alert("ไม่มีข้อมูลประวัติให้สำรอง");
+          return;
+        }
+        // สร้าง timestamp สำหรับโฟลเดอร์สำรอง
+        const timestamp = new Date().toISOString().replace(/[-:.]/g,"").slice(0,15);
+        const backupRef = db.ref("history_backup/" + timestamp);
 
-    function sortHistory(order = "asc") {
-      const sorted = [...historyData].sort((a, b) => {
-        const timeA = new Date(a.timeIn);
-        const timeB = new Date(b.timeIn);
-        return order === "asc" ? timeA - timeB : timeB - timeA;
+        backupRef.set(data).then(() => {
+          return db.ref("history").remove();
+        }).then(() => {
+          alert("สำรองและล้างประวัติเรียบร้อยแล้ว");
+        }).catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
       });
-      renderTable(sorted);
     }
 
-    function clearHistory() {
-      if (confirm("ยืนยันการล้างประวัติทั้งหมด? การดำเนินการนี้ไม่สามารถกู้คืนได้")) {
-        db.ref("history").remove()
-          .then(() => alert("ล้างประวัติเรียบร้อยแล้ว"))
-          .catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
-      }
-    }
+    function restoreBackup() {
+      if (!confirm("ยืนยันการกู้คืนประวัติจากสำรองล่าสุด? ข้อมูลปัจจุบันจะถูกลบ")) return;
 
-    function downloadExcel() {
-      const table = document.getElementById("historyTable").outerHTML;
-      const blob = new Blob([table], { type: "application/vnd.ms-excel" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ประวัติการเข้าออกคิว.xls";
-      a.click();
-      URL.revokeObjectURL(url);
+      db.ref("history_backup").orderByKey().limitToLast(1).once("value").then(snap => {
+        const backups = snap.val();
+        if (!backups) {
+          alert("ไม่พบข้อมูลสำรอง");
+          return;
+        }
+        const lastBackupKey = Object.keys(backups)[0];
+        const lastBackupData = backups[lastBackupKey];
+
+        // ลบข้อมูลปัจจุบัน แล้วกู้คืนข้อมูลจาก backup
+        db.ref("history").remove().then(() => {
+          return db.ref("history").set(lastBackupData);
+        }).then(() => {
+          alert("กู้คืนข้อมูลสำเร็จ");
+        }).catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
+      });
     }
 
     window.onload = function () {
+      const tbody = document.getElementById("historyBody");
+
+      // ดึงข้อมูล history และแสดงตาราง
       db.ref("history").on("value", snapshot => {
         const data = snapshot.val() || {};
-        historyData = Object.values(data);
-        sortHistory("asc"); // เริ่มต้นเรียงจากน้อยไปมาก
+        const rows = Object.values(data)
+          .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn)); // เรียงเวลาเข้าใหม่ล่าสุดบนสุด
+
+        tbody.innerHTML = "";
+
+        for (let item of rows) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.number}</td>
+            <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
+            <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
+            <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
+          `;
+          tbody.appendChild(tr);
+        }
       });
     };
   </script>
+</head>
+<body>
+  <div class="container">
+    <h2>ประวัติการเข้า-ออกคิว</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>หมายเลขคิว</th>
+          <th>เวลาเข้า</th>
+          <th>เวลาเริ่มให้บริการ</th>
+          <th>เวลาออก</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+    <div class="btn-group">
+      <button class="clear-btn" onclick="backupAndClear()">ล้างประวัติแบบกู้คืนได้</button>
+      <button class="restore-btn" onclick="restoreBackup()">กู้คืนประวัติจากสำรองล่าสุด</button>
+    </div>
+  </div>
 </body>
 </html>
