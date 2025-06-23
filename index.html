@@ -15,10 +15,10 @@
     .container {
       max-width: 1000px;
       margin: auto;
-      background: white;
+      background: #fff;
       padding: 30px;
       border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 0 15px rgba(0,0,0,0.15);
     }
     .input-group {
       display: flex;
@@ -33,7 +33,7 @@
     }
     button {
       background-color: #28a745;
-      color: white;
+      color: #fff;
       border: none;
       padding: 10px 20px;
       font-size: 16px;
@@ -45,7 +45,7 @@
     }
     .action-btn {
       background-color: #007bff;
-      color: white;
+      color: #fff;
       border: none;
       padding: 6px 12px;
       border-radius: 6px;
@@ -56,9 +56,9 @@
       background-color: #0056b3;
     }
     .action-btn.disabled {
-      background-color: #ccc;
-      color: #666;
-      cursor: not-allowed;
+      background-color: #ccc !important;
+      color: #666 !important;
+      cursor: not-allowed !important;
     }
     #clock {
       font-size: 20px;
@@ -87,7 +87,7 @@
     }
     th {
       background-color: #28a745;
-      color: white;
+      color: #fff;
     }
     td {
       background-color: #f9f9f9;
@@ -99,6 +99,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
 
   <script>
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
       authDomain: "queue-management-system-79b27.firebaseapp.com",
@@ -120,105 +121,103 @@
     // เพิ่มคิวใหม่
     function addQueue() {
       const number = document.getElementById("queueNumber").value.trim();
-      if (!number) return alert("กรุณากรอกหมายเลขคิว");
-
+      if (!number) {
+        alert("กรุณากรอกหมายเลขคิว");
+        return;
+      }
       const timeIn = new Date().toISOString();
-      db.ref("queues/" + number).set({ number, timeIn, served: false });
+      db.ref("queues/" + number).set({
+        number,
+        timeIn,
+        served: false,
+        startServiceTime: null
+      });
       document.getElementById("queueNumber").value = "";
     }
 
-    // เริ่มให้บริการ
+    // เริ่มให้บริการ (บันทึก startServiceTime เท่านั้น)
     function startService(number) {
       const now = new Date().toISOString();
       const ref = db.ref("queues/" + number);
-
       ref.once("value").then(snapshot => {
         const data = snapshot.val();
         if (!data || data.served) return;
+        ref.update({ served: true, startServiceTime: now });
+      });
+    }
 
-        const history = {
+    // ออกคิว (บันทึก history แล้วลบ)
+    function removeQueue(number) {
+      const now = new Date().toISOString();
+      const ref = db.ref("queues/" + number);
+      ref.once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (!data) return;
+        const historyEntry = {
           number: data.number,
           timeIn: data.timeIn,
-          startServiceTime: now,
+          startServiceTime: data.startServiceTime || data.timeIn,
           timeOut: now
         };
-
         // บันทึกไป /history
-        db.ref("history").push(history);
-
+        db.ref("history").push(historyEntry);
         // ส่งไป Google Sheets
         fetch("https://script.google.com/macros/s/AKfycbwmg_JnzGDuU-T3hL0A6R9pTsxMh454uH8e5-nP4P0wxEaaEDzuL9ftbpdpSQ5_B4ZbDg/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(history)
-        })
-        .then(res => res.text())
-        .then(txt => console.log("ส่งข้อมูลไป Google Sheets:", txt))
-        .catch(err => console.error("ผิดพลาด:", err));
-
-        // อัปเดตสถานะ
-        ref.update({ served: true });
+          body: JSON.stringify(historyEntry)
+        }).catch(console.error);
+        // ลบคิวออก
+        ref.remove();
       });
     }
 
-    // ลบคิวออก
-    function removeQueue(number) {
-      db.ref("queues/" + number).remove();
-    }
-
-    // แสดงผลคิวในตาราง
+    // แสดงตารางคิว
     function renderQueues(data) {
       const container = document.getElementById("queues");
       container.innerHTML = "";
-
       const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      thead.innerHTML = `
-        <tr>
-          <th>หมายเลขคิว</th>
-          <th>เวลาเข้า</th>
-          <th>สถานะ</th>
-          <th>จัดการ</th>
-        </tr>
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>หมายเลขคิว</th>
+            <th>เวลาเข้า</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
       `;
-      table.appendChild(thead);
-
       const tbody = document.createElement("tbody");
-
-      const sorted = Object.entries(data).sort((a, b) => {
-        return new Date(a[1].timeIn) - new Date(b[1].timeIn);
-      });
-
-      for (let [id, q] of sorted) {
-        const isServed = q.served === true;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${q.number}</td>
-          <td>${new Date(q.timeIn).toLocaleTimeString("th-TH")}</td>
-          <td>${isServed ? "กำลังให้บริการ" : "รอคิว"}</td>
-          <td>
-            <button class="action-btn ${isServed ? 'disabled' : ''}" 
-              onclick="${isServed ? '' : `startService('${q.number}')`}" 
-              ${isServed ? 'disabled' : ''}>
-              เริ่มให้บริการ
-            </button>
-            <button class="action-btn" style="background-color:#dc3545; margin-left:8px;" 
-              onclick="removeQueue('${q.number}')">
-              ออก
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      }
-
+      Object.values(data)
+        .sort((a, b) => new Date(a.timeIn) - new Date(b.timeIn))
+        .forEach(q => {
+          const isServed = q.served === true;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${q.number}</td>
+            <td>${new Date(q.timeIn).toLocaleTimeString("th-TH")}</td>
+            <td>${isServed ? "กำลังให้บริการ" : "รอคิว"}</td>
+            <td>
+              <button class="action-btn ${isServed ? "disabled" : ""}"
+                onclick="${isServed ? "" : `startService('${q.number}')`}"
+                ${isServed ? "disabled" : ""}>
+                เริ่มให้บริการ
+              </button>
+              <button class="action-btn" style="background-color:#dc3545; margin-left:8px;"
+                onclick="removeQueue('${q.number}')">
+                ออก
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
       table.appendChild(tbody);
       container.appendChild(table);
     }
 
-    // ซิงค์ข้อมูลคิวแบบเรียลไทม์
+    // ซิงค์ข้อมูลแบบเรียลไทม์
     db.ref("queues").on("value", snapshot => {
-      const data = snapshot.val() || {};
-      renderQueues(data);
+      renderQueues(snapshot.val() || {});
     });
   </script>
 </head>
@@ -226,14 +225,11 @@
   <div class="container">
     <h2>ระบบจัดการคิวแบบเรียลไทม์</h2>
     <div id="clock"></div>
-
     <div class="input-group">
       <input type="number" id="queueNumber" placeholder="หมายเลขคิว" />
       <button onclick="addQueue()">เพิ่มคิว</button>
     </div>
-
     <a href="status.html" class="history-link" target="_blank">ดูประวัติการเข้า-ออก</a>
-
     <div id="queues"></div>
   </div>
 </body>
