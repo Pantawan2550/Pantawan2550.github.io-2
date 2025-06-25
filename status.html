@@ -79,6 +79,7 @@
     const historyRef = ref(db, "history");
     const historyBody = document.getElementById("historyBody");
 
+    // ดึงข้อมูลแบบเรียลไทม์
     onValue(historyRef, (snapshot) => {
       const data = snapshot.val();
       historyBody.innerHTML = "";
@@ -96,6 +97,7 @@
       }
     });
 
+    // ปุ่มล้างข้อมูล
     document.getElementById("clearHistoryBtn").addEventListener("click", () => {
       if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด?")) {
         remove(historyRef)
