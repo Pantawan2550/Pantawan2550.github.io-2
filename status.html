@@ -3,84 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ประวัติการเข้า-ออกคิว</title>
+  <title>ระบบจัดการคิว (พ่อค้าแม่ค้า)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #eef2f7;
+      text-align: center;
+      background-color: #f4f4f4;
       margin: 0;
       padding: 20px;
-      text-align: center;
     }
     .container {
-      max-width: 1000px;
+      max-width: 600px;
       margin: auto;
       background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-    h2 {
-      margin-bottom: 20px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      font-size: 16px;
-    }
-    th {
-      background-color: #007bff;
-      color: white;
-    }
-    td {
-      background-color: #f9f9f9;
-    }
-    .btn-group {
-      margin-top: 20px;
+    .input-group, .queue-group {
       display: flex;
-      justify-content: center;
-      gap: 15px;
       flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
     }
+    .input-item {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 300px;
+    }
+    label { white-space: nowrap; }
     button {
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      color: white;
-      min-width: 180px;
-    }
-    .sort-btn {
-      background-color: #007bff;
-    }
-    .sort-btn:hover {
-      background-color: #0056b3;
-    }
-    .clear-btn {
-      background-color: #dc3545;
-    }
-    .clear-btn:hover {
-      background-color: #c82333;
-    }
-    .restore-btn {
       background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    .restore-btn:hover {
-      background-color: #1e7e34;
+    button:hover { background-color: #218838; }
+    .queue-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .queue-box {
+      border: 2px solid #333;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: #d4edda;
+      width: 120px;
+      text-align: center;
+      font-weight: bold;
+      position: relative;
+    }
+    .remove-btn {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .remove-btn:hover { background-color: #c82333; }
+    .notification {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 5px;
+      display: none;
+    }
+    .current-queue-count {
+      margin-top: 15px;
+      font-size: 18px;
+    }
+    #clock {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #555;
     }
   </style>
+</head>
+<body>
+  <div class="container">
+    <h2>ระบบจัดการคิว (พ่อค้าแม่ค้า)</h2>
+    <div id="clock"></div>
+
+    <div class="queue-group">
+      <div class="input-item">
+        <label for="lambda">λ (ลูกค้ามาถึง/นาที):</label>
+        <input type="number" id="lambda" step="any" placeholder="เช่น 2" />
+      </div>
+      <div class="input-item">
+        <label for="mu">μ (บริการ/นาที):</label>
+        <input type="number" id="mu" step="any" placeholder="เช่น 3" />
+      </div>
+      <div class="input-item">
+        <label for="servers">จำนวนพนักงาน (s):</label>
+        <input type="number" id="servers" placeholder="เช่น 2" />
+      </div>
+    </div>
+
+    <div class="input-group">
+      <div class="input-item">
+        <label for="queueNumber">หมายเลขคิว:</label>
+        <input type="number" id="queueNumber" min="1" />
+      </div>
+      <button onclick="addQueue()">เพิ่มคิว</button>
+    </div>
+
+    <div class="notification" id="notification"></div>
+    <div class="queue-container" id="queues"></div>
+    <div class="current-queue-count" id="queueCount"></div>
+
+    <div style="margin-top: 20px;">
+      <a href="history.html">ดูประวัติการเข้า-ออก</a>
+    </div>
+  </div>
 
   <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
-
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
@@ -94,111 +145,167 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let sortAsc = false; // เริ่มต้นเรียงจากใหม่→เก่า (มาก→น้อย)
+    let queues = {};
+    const usedQueueNumbers = new Set();
+    const timers = {};
 
-    function backupAndClear() {
-      if (!confirm("ยืนยันการล้างประวัติแบบสำรองก่อน?")) return;
+    setInterval(() => {
+      document.getElementById("clock").textContent =
+        `เวลา: ${new Date().toLocaleTimeString("th-TH", { hour12: false })}`;
+    }, 1000);
 
-      db.ref("history").once("value").then(snapshot => {
-        const data = snapshot.val();
-        if (!data) {
-          alert("ไม่มีข้อมูลประวัติให้สำรอง");
-          return;
-        }
-        const timestamp = new Date().toISOString().replace(/[-:.]/g,"").slice(0,15);
-        const backupRef = db.ref("history_backup/" + timestamp);
-
-        backupRef.set(data).then(() => {
-          return db.ref("history").remove();
-        }).then(() => {
-          alert("สำรองและล้างประวัติเรียบร้อยแล้ว");
-        }).catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
-      });
+    function showNotification(message) {
+      const note = document.getElementById("notification");
+      note.textContent = message;
+      note.style.display = "block";
+      setTimeout(() => (note.style.display = "none"), 4000);
     }
 
-    function restoreBackup() {
-      if (!confirm("ยืนยันการกู้คืนประวัติจากสำรองล่าสุด? ข้อมูลปัจจุบันจะถูกลบ")) return;
-
-      db.ref("history_backup").orderByKey().limitToLast(1).once("value").then(snap => {
-        const backups = snap.val();
-        if (!backups) {
-          alert("ไม่พบข้อมูลสำรอง");
-          return;
-        }
-        const lastBackupKey = Object.keys(backups)[0];
-        const lastBackupData = backups[lastBackupKey];
-
-        db.ref("history").remove().then(() => {
-          return db.ref("history").set(lastBackupData);
-        }).then(() => {
-          alert("กู้คืนข้อมูลสำเร็จ");
-        }).catch(err => alert("เกิดข้อผิดพลาด: " + err.message));
-      });
+    function factorial(n) {
+      return n <= 1 ? 1 : n * factorial(n - 1);
     }
 
-    function toggleSort() {
-      sortAsc = !sortAsc;
-      renderTable(currentData);
-      const btn = document.getElementById("sortBtn");
-      btn.textContent = sortAsc ? "เรียงเวลาเข้า: น้อย → มาก" : "เรียงเวลาเข้า: มาก → น้อย";
-    }
-
-    let currentData = [];
-
-    function renderTable(data) {
-      const tbody = document.getElementById("historyBody");
-      // sort by timeIn ตามสถานะ sortAsc
-      const sorted = data.slice().sort((a,b) => {
-        const tA = new Date(a.timeIn).getTime();
-        const tB = new Date(b.timeIn).getTime();
-        return sortAsc ? tA - tB : tB - tA;
-      });
-
-      tbody.innerHTML = "";
-      for (const item of sorted) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.number}</td>
-          <td>${item.timeIn ? new Date(item.timeIn).toLocaleTimeString("th-TH") : "-"}</td>
-          <td>${item.startServiceTime ? new Date(item.startServiceTime).toLocaleTimeString("th-TH") : "-"}</td>
-          <td>${item.timeOut ? new Date(item.timeOut).toLocaleTimeString("th-TH") : "-"}</td>
-        `;
-        tbody.appendChild(tr);
+    function calculateMMS(lambda, mu, s) {
+      const ρ = lambda / (s * mu);
+      if (ρ >= 1) return null;
+      let sum = 0;
+      for (let k = 0; k < s; k++) {
+        sum += Math.pow(lambda / mu, k) / factorial(k);
       }
+      const lastTerm = Math.pow(lambda / mu, s) / (factorial(s) * (1 - ρ));
+      const P0 = 1 / (sum + lastTerm);
+      const Lq = (P0 * Math.pow(lambda / mu, s) * ρ) / (factorial(s) * Math.pow(1 - ρ, 2));
+      const Wq = Lq / lambda;
+      return Wq * 60;
     }
 
-    window.onload = function() {
-      const tbody = document.getElementById("historyBody");
-      db.ref("history").on("value", snapshot => {
-        currentData = Object.values(snapshot.val() || {});
-        renderTable(currentData);
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m} นาที ${s} วินาที`;
+    }
+
+    function calculateWaitTimes(queueNumbers, baseWaitTime, s) {
+      let waitTimes = {};
+      const sortedQueues = [...queueNumbers].sort((a, b) => a - b);
+      for (let i = 0; i < sortedQueues.length; i++) {
+        const q = sortedQueues[i];
+        const pos = i + 1;
+        if (pos <= s) {
+          waitTimes[q] = baseWaitTime;
+        } else {
+          const groupIndex = Math.floor((pos - 1) / s);
+          const prevStart = (groupIndex - 1) * s;
+          const prevEnd = groupIndex * s;
+          const prevGroup = sortedQueues.slice(prevStart, prevEnd);
+          const prevTimes = prevGroup.map(num => waitTimes[num] || 0);
+          const minPrev = Math.min(...prevTimes);
+          waitTimes[q] = baseWaitTime + minPrev;
+        }
+      }
+      return waitTimes;
+    }
+
+    function addQueue() {
+      const queueNumber = parseInt(document.getElementById("queueNumber").value);
+      const lambda = parseFloat(document.getElementById("lambda").value);
+      const mu = parseFloat(document.getElementById("mu").value);
+      const s = parseInt(document.getElementById("servers").value);
+
+      if (isNaN(queueNumber) || queueNumber < 1 || usedQueueNumbers.has(queueNumber)) {
+        showNotification("หมายเลขคิวซ้ำหรือไม่ถูกต้อง");
+        return;
+      }
+      if (isNaN(lambda) || isNaN(mu) || isNaN(s) || lambda <= 0 || mu <= 0 || s < 1) {
+        showNotification("โปรดกรอกค่าถูกต้องทั้งหมด");
+        return;
+      }
+
+      const baseWaitTime = calculateMMS(lambda, mu, s);
+      if (baseWaitTime === null) {
+        showNotification("ระบบเกินความสามารถ (λ ≥ sμ)");
+        return;
+      }
+
+      const allQueueNumbers = [...Object.keys(queues).map(Number), queueNumber];
+      const newWaitTimes = calculateWaitTimes(allQueueNumbers, Math.ceil(baseWaitTime), s);
+
+      queues[queueNumber] = {
+        remainingTime: newWaitTimes[queueNumber],
+        entryTime: new Date().toLocaleTimeString("th-TH", { hour12: false })
+      };
+      usedQueueNumbers.add(queueNumber);
+
+      db.ref("queues").set(queues);
+      startTimerForAllQueues(); // ✅ เริ่มนับทันที
+      showNotification(`เพิ่มคิว ${queueNumber} แล้ว (${formatTime(queues[queueNumber].remainingTime)})`);
+    }
+
+    function removeQueue(queueNumber) {
+      const exitTime = new Date().toLocaleTimeString("th-TH", { hour12: false });
+      const entryTime = queues[queueNumber]?.entryTime || "ไม่ทราบเวลาเข้า";
+
+      db.ref("history").push({
+        queueNumber: queueNumber,
+        entryTime: entryTime,
+        exitTime: exitTime
       });
 
-      // ตั้งชื่อปุ่มเริ่มต้น
-      document.getElementById("sortBtn").textContent = "เรียงเวลาเข้า: มาก → น้อย";
-    };
-  </script>
-</head>
-<body>
-  <div class="container">
-    <h2>ประวัติการเข้า-ออกคิว</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>หมายเลขคิว</th>
-          <th>เวลาเข้า</th>
-          <th>เวลาเริ่มให้บริการ</th>
-          <th>เวลาออก</th>
-        </tr>
-      </thead>
-      <tbody id="historyBody"></tbody>
-    </table>
+      delete queues[queueNumber];
+      usedQueueNumbers.delete(Number(queueNumber));
+      db.ref("queues").set(queues);
+      showNotification(`คิว ${queueNumber} เสร็จสิ้น`);
+    }
 
-    <div class="btn-group">
-      <button id="sortBtn" class="sort-btn" onclick="toggleSort()"></button>
-      <button class="clear-btn" onclick="backupAndClear()">ล้างประวัติแบบกู้คืนได้</button>
-      <button class="restore-btn" onclick="restoreBackup()">กู้คืนประวัติจากสำรองล่าสุด</button>
-    </div>
-  </div>
+    function updateQueues() {
+      const container = document.getElementById("queues");
+      container.innerHTML = "";
+      Object.entries(queues)
+        .sort((a, b) => {
+          const t1 = a[1].entryTime;
+          const t2 = b[1].entryTime;
+          return new Date(`1970-01-01T${t1}`) - new Date(`1970-01-01T${t2}`);
+        })
+        .forEach(([queueNumber, t]) => {
+          const div = document.createElement("div");
+          div.classList.add("queue-box");
+          div.innerHTML = `
+            <p>คิว ${queueNumber}</p>
+            <p>เหลือเวลา: ${formatTime(t.remainingTime)}</p>
+            <button class="remove-btn" onclick="removeQueue(${queueNumber})">เสร็จ</button>
+          `;
+          container.appendChild(div);
+        });
+      document.getElementById("queueCount").textContent =
+        `จำนวนคิวที่กำลังให้บริการ: ${Object.keys(queues).length}`;
+    }
+
+    function startTimerForAllQueues() {
+      Object.keys(queues).forEach(queueNumber => {
+        if (timers[queueNumber]) return;
+        timers[queueNumber] = setInterval(() => {
+          if (queues[queueNumber]) {
+            if (queues[queueNumber].remainingTime > 0) {
+              queues[queueNumber].remainingTime--;
+              db.ref("queues").set(queues);
+            } else {
+              clearInterval(timers[queueNumber]);
+              removeQueue(queueNumber);
+            }
+          } else {
+            clearInterval(timers[queueNumber]);
+          }
+        }, 1000);
+      });
+    }
+
+    db.ref("queues").on("value", snapshot => {
+      queues = snapshot.val() || {};
+      usedQueueNumbers.clear();
+      Object.keys(queues).forEach(q => usedQueueNumbers.add(Number(q)));
+      updateQueues();
+      startTimerForAllQueues();
+    });
+  </script>
 </body>
 </html>
