@@ -3,308 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ระบบจัดการคิว (พ่อค้าแม่ค้า)</title>
+  <title>ประวัติการเข้า-ออกคิว</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
       text-align: center;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 20px;
     }
-    .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    h1 {
+      color: #333;
     }
-    .input-group, .queue-group {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-    .input-item {
-      display: flex;
-      justify-content: space-between;
+    table {
       width: 100%;
-      max-width: 300px;
+      max-width: 950px;
+      margin: auto;
+      border-collapse: collapse;
+      background-color: #fff;
     }
-    label { white-space: nowrap; }
-    button {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover { background-color: #218838; }
-    .queue-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    .queue-box {
-      border: 2px solid #333;
-      padding: 15px;
-      border-radius: 10px;
-      background-color: #d4edda;
-      width: 120px;
-      text-align: center;
-      font-weight: bold;
-      position: relative;
-    }
-    .remove-btn {
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      padding: 5px;
-      border-radius: 5px;
-      cursor: pointer;
-      position: absolute;
-      bottom: 5px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    .remove-btn:hover { background-color: #c82333; }
-    .notification {
-      margin-top: 15px;
+    th, td {
       padding: 10px;
-      background-color: #28a745;
+      border: 1px solid #ccc;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #d9534f;
       color: white;
+      border: none;
       border-radius: 5px;
-      display: none;
     }
-    .current-queue-count {
-      margin-top: 15px;
-      font-size: 18px;
-    }
-    #clock {
-      font-size: 20px;
-      margin-bottom: 10px;
-      color: #555;
+    button:hover {
+      background-color: #c9302c;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>ระบบจัดการคิว (พ่อค้าแม่ค้า)</h2>
-    <div id="clock"></div>
+  <h1>ประวัติการเข้า-ออกคิว</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>หมายเลขคิว</th>
+        <th>เวลาเข้า</th>
+        <th>เวลาให้บริการ</th>
+        <th>เวลาออก</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody"></tbody>
+  </table>
 
-    <div class="queue-group">
-      <div class="input-item">
-        <label for="lambda">λ (ลูกค้ามาถึง/นาที):</label>
-        <input type="number" id="lambda" step="any" placeholder="เช่น 2" />
-      </div>
-      <div class="input-item">
-        <label for="mu">μ (บริการ/นาที):</label>
-        <input type="number" id="mu" step="any" placeholder="เช่น 3" />
-      </div>
-      <div class="input-item">
-        <label for="servers">จำนวนพนักงาน (s):</label>
-        <input type="number" id="servers" placeholder="เช่น 2" />
-      </div>
-    </div>
+  <button id="clearHistoryBtn">🗑 ล้างประวัติทั้งหมด</button>
 
-    <div class="input-group">
-      <div class="input-item">
-        <label for="queueNumber">หมายเลขคิว:</label>
-        <input type="number" id="queueNumber" min="1" />
-      </div>
-      <button onclick="addQueue()">เพิ่มคิว</button>
-    </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-    <div class="notification" id="notification"></div>
-    <div class="queue-container" id="queues"></div>
-    <div class="current-queue-count" id="queueCount"></div>
-
-    <div style="margin-top: 20px;">
-      <a href="history.html">ดูประวัติการเข้า-ออก</a>
-    </div>
-  </div>
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-  <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
-      authDomain: "queue-management-system-79b27.firebaseapp.com",
-      databaseURL: "https://queue-management-system-79b27-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "queue-management-system-79b27",
-      storageBucket: "queue-management-system-79b27.appspot.com",
-      messagingSenderId: "76344006886",
-      appId: "1:76344006886:web:a93cdee9adf70b43e30327"
+      apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
+      authDomain: "restaurant-waiting-list.firebaseapp.com",
+      databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "restaurant-waiting-list",
+      storageBucket: "restaurant-waiting-list.firebasestorage.app",
+      messagingSenderId: "60559914247",
+      appId: "1:60559914247:web:76f651da714279231ac1a2",
+      measurementId: "G-6H5ZK1J231"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
 
-    let queues = {};
-    const usedQueueNumbers = new Set();
-    const timers = {};
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    setInterval(() => {
-      document.getElementById("clock").textContent =
-        `เวลา: ${new Date().toLocaleTimeString("th-TH", { hour12: false })}`;
-    }, 1000);
+    const historyRef = ref(db, "history");
+    const historyBody = document.getElementById("historyBody");
 
-    function showNotification(message) {
-      const note = document.getElementById("notification");
-      note.textContent = message;
-      note.style.display = "block";
-      setTimeout(() => (note.style.display = "none"), 4000);
-    }
-
-    function factorial(n) {
-      return n <= 1 ? 1 : n * factorial(n - 1);
-    }
-
-    function calculateMMS(lambda, mu, s) {
-      const ρ = lambda / (s * mu);
-      if (ρ >= 1) return null;
-      let sum = 0;
-      for (let k = 0; k < s; k++) {
-        sum += Math.pow(lambda / mu, k) / factorial(k);
-      }
-      const lastTerm = Math.pow(lambda / mu, s) / (factorial(s) * (1 - ρ));
-      const P0 = 1 / (sum + lastTerm);
-      const Lq = (P0 * Math.pow(lambda / mu, s) * ρ) / (factorial(s) * Math.pow(1 - ρ, 2));
-      const Wq = Lq / lambda;
-      return Wq * 60;
-    }
-
-    function formatTime(seconds) {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${m} นาที ${s} วินาที`;
-    }
-
-    function calculateWaitTimes(queueNumbers, baseWaitTime, s) {
-      let waitTimes = {};
-      const sortedQueues = [...queueNumbers].sort((a, b) => a - b);
-      for (let i = 0; i < sortedQueues.length; i++) {
-        const q = sortedQueues[i];
-        const pos = i + 1;
-        if (pos <= s) {
-          waitTimes[q] = baseWaitTime;
-        } else {
-          const groupIndex = Math.floor((pos - 1) / s);
-          const prevStart = (groupIndex - 1) * s;
-          const prevEnd = groupIndex * s;
-          const prevGroup = sortedQueues.slice(prevStart, prevEnd);
-          const prevTimes = prevGroup.map(num => waitTimes[num] || 0);
-          const minPrev = Math.min(...prevTimes);
-          waitTimes[q] = baseWaitTime + minPrev;
-        }
-      }
-      return waitTimes;
-    }
-
-    function addQueue() {
-      const queueNumber = parseInt(document.getElementById("queueNumber").value);
-      const lambda = parseFloat(document.getElementById("lambda").value);
-      const mu = parseFloat(document.getElementById("mu").value);
-      const s = parseInt(document.getElementById("servers").value);
-
-      if (isNaN(queueNumber) || queueNumber < 1 || usedQueueNumbers.has(queueNumber)) {
-        showNotification("หมายเลขคิวซ้ำหรือไม่ถูกต้อง");
-        return;
-      }
-      if (isNaN(lambda) || isNaN(mu) || isNaN(s) || lambda <= 0 || mu <= 0 || s < 1) {
-        showNotification("โปรดกรอกค่าถูกต้องทั้งหมด");
-        return;
-      }
-
-      const baseWaitTime = calculateMMS(lambda, mu, s);
-      if (baseWaitTime === null) {
-        showNotification("ระบบเกินความสามารถ (λ ≥ sμ)");
-        return;
-      }
-
-      const allQueueNumbers = [...Object.keys(queues).map(Number), queueNumber];
-      const newWaitTimes = calculateWaitTimes(allQueueNumbers, Math.ceil(baseWaitTime), s);
-
-      queues[queueNumber] = {
-        remainingTime: newWaitTimes[queueNumber],
-        entryTime: new Date().toLocaleTimeString("th-TH", { hour12: false })
-      };
-      usedQueueNumbers.add(queueNumber);
-
-      db.ref("queues").set(queues);
-      startTimerForAllQueues(); // ✅ เริ่มนับทันที
-      showNotification(`เพิ่มคิว ${queueNumber} แล้ว (${formatTime(queues[queueNumber].remainingTime)})`);
-    }
-
-    function removeQueue(queueNumber) {
-      const exitTime = new Date().toLocaleTimeString("th-TH", { hour12: false });
-      const entryTime = queues[queueNumber]?.entryTime || "ไม่ทราบเวลาเข้า";
-
-      db.ref("history").push({
-        queueNumber: queueNumber,
-        entryTime: entryTime,
-        exitTime: exitTime
-      });
-
-      delete queues[queueNumber];
-      usedQueueNumbers.delete(Number(queueNumber));
-      db.ref("queues").set(queues);
-      showNotification(`คิว ${queueNumber} เสร็จสิ้น`);
-    }
-
-    function updateQueues() {
-      const container = document.getElementById("queues");
-      container.innerHTML = "";
-      Object.entries(queues)
-        .sort((a, b) => {
-          const t1 = a[1].entryTime;
-          const t2 = b[1].entryTime;
-          return new Date(`1970-01-01T${t1}`) - new Date(`1970-01-01T${t2}`);
-        })
-        .forEach(([queueNumber, t]) => {
-          const div = document.createElement("div");
-          div.classList.add("queue-box");
-          div.innerHTML = `
-            <p>คิว ${queueNumber}</p>
-            <p>เหลือเวลา: ${formatTime(t.remainingTime)}</p>
-            <button class="remove-btn" onclick="removeQueue(${queueNumber})">เสร็จ</button>
+    onValue(historyRef, (snapshot) => {
+      const data = snapshot.val();
+      historyBody.innerHTML = "";
+      if (data) {
+        Object.entries(data).forEach(([key, value]) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${value.queueNumber || "-"}</td>
+            <td>${value.timeIn || "-"}</td>
+            <td>${value.serviceStart || "-"}</td>
+            <td>${value.timeOut || "-"}</td>
           `;
-          container.appendChild(div);
+          historyBody.appendChild(tr);
         });
-      document.getElementById("queueCount").textContent =
-        `จำนวนคิวที่กำลังให้บริการ: ${Object.keys(queues).length}`;
-    }
+      }
+    });
 
-    function startTimerForAllQueues() {
-      Object.keys(queues).forEach(queueNumber => {
-        if (timers[queueNumber]) return;
-        timers[queueNumber] = setInterval(() => {
-          if (queues[queueNumber]) {
-            if (queues[queueNumber].remainingTime > 0) {
-              queues[queueNumber].remainingTime--;
-              db.ref("queues").set(queues);
-            } else {
-              clearInterval(timers[queueNumber]);
-              removeQueue(queueNumber);
-            }
-          } else {
-            clearInterval(timers[queueNumber]);
-          }
-        }, 1000);
-      });
-    }
-
-    db.ref("queues").on("value", snapshot => {
-      queues = snapshot.val() || {};
-      usedQueueNumbers.clear();
-      Object.keys(queues).forEach(q => usedQueueNumbers.add(Number(q)));
-      updateQueues();
-      startTimerForAllQueues();
+    document.getElementById("clearHistoryBtn").addEventListener("click", () => {
+      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด?")) {
+        remove(historyRef)
+          .then(() => alert("✅ ล้างประวัติเรียบร้อยแล้ว"))
+          .catch((err) => alert("❌ ล้างไม่สำเร็จ: " + err.message));
+      }
     });
   </script>
 </body>
