@@ -29,16 +29,25 @@
       background-color: #f0f0f0;
     }
     button {
-      margin-top: 20px;
+      margin: 10px 10px;
       padding: 10px 20px;
       font-size: 1rem;
-      background-color: #d9534f;
-      color: white;
       border: none;
       border-radius: 5px;
+      color: white;
+      cursor: pointer;
     }
-    button:hover {
+    #clearHistoryBtn {
+      background-color: #d9534f;
+    }
+    #clearHistoryBtn:hover {
       background-color: #c9302c;
+    }
+    #addExampleBtn {
+      background-color: #5cb85c;
+    }
+    #addExampleBtn:hover {
+      background-color: #4cae4c;
     }
   </style>
 </head>
@@ -53,15 +62,20 @@
         <th>เวลาออก</th>
       </tr>
     </thead>
-    <tbody id="historyBody"></tbody>
+    <tbody id="historyBody">
+      <tr><td colspan="4">⏳ กำลังโหลดข้อมูล...</td></tr>
+    </tbody>
   </table>
 
+  <button id="addExampleBtn">➕ เพิ่มข้อมูลตัวอย่าง</button>
   <button id="clearHistoryBtn">🗑 ล้างประวัติทั้งหมด</button>
 
   <script type="module">
+    // นำเข้า SDK
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, push } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
+    // คอนฟิก Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
@@ -73,13 +87,13 @@
       measurementId: "G-6H5ZK1J231"
     };
 
+    // เริ่มต้น Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-
     const historyRef = ref(db, "history");
     const historyBody = document.getElementById("historyBody");
 
-    // ดึงข้อมูลแบบเรียลไทม์
+    // โหลดข้อมูลเรียลไทม์
     onValue(historyRef, (snapshot) => {
       const data = snapshot.val();
       historyBody.innerHTML = "";
@@ -94,16 +108,34 @@
           `;
           historyBody.appendChild(tr);
         });
+      } else {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="4">ไม่มีข้อมูลประวัติ</td>`;
+        historyBody.appendChild(tr);
       }
     });
 
-    // ปุ่มล้างข้อมูล
+    // ปุ่มล้างข้อมูลทั้งหมด
     document.getElementById("clearHistoryBtn").addEventListener("click", () => {
       if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด?")) {
         remove(historyRef)
           .then(() => alert("✅ ล้างประวัติเรียบร้อยแล้ว"))
           .catch((err) => alert("❌ ล้างไม่สำเร็จ: " + err.message));
       }
+    });
+
+    // ปุ่มเพิ่มข้อมูลตัวอย่าง
+    document.getElementById("addExampleBtn").addEventListener("click", () => {
+      const exampleData = {
+        queueNumber: Math.floor(Math.random() * 1000).toString(),
+        timeIn: new Date().toLocaleTimeString(),
+        serviceStart: new Date(Date.now() + 2 * 60 * 1000).toLocaleTimeString(), // +2 นาที
+        timeOut: new Date(Date.now() + 5 * 60 * 1000).toLocaleTimeString()      // +5 นาที
+      };
+      const newRef = push(historyRef);
+      set(newRef, exampleData)
+        .then(() => alert("✅ เพิ่มข้อมูลตัวอย่างแล้ว"))
+        .catch((err) => alert("❌ เพิ่มไม่สำเร็จ: " + err.message));
     });
   </script>
 </body>
