@@ -1,79 +1,71 @@
-<!-- ✅ HTML ที่ถูกตัดปุ่มเพิ่มออก -->
-<!DOCTYPE html>
+<!<!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ประวัติการเข้า-ออกคิว</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบจัดการคิว</title>
   <style>
     body {
       font-family: sans-serif;
-      padding: 20px;
-      background-color: #f5f5f5;
       text-align: center;
+      background: #f9f9f9;
+      padding: 20px;
     }
     h1 {
       color: #333;
     }
     table {
-      width: 100%;
-      max-width: 950px;
+      width: 90%;
       margin: auto;
+      background: #fff;
       border-collapse: collapse;
-      background-color: #fff;
     }
     th, td {
-      padding: 10px;
       border: 1px solid #ccc;
-    }
-    th {
-      background-color: #f0f0f0;
+      padding: 10px;
     }
     button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 1rem;
+      padding: 8px 16px;
+      background: #5bc0de;
       border: none;
-      border-radius: 5px;
       color: white;
       cursor: pointer;
+      border-radius: 5px;
     }
-    #clearHistoryBtn {
-      background-color: #d9534f;
-    }
-    #clearHistoryBtn:hover {
-      background-color: #c9302c;
+    button:hover {
+      background: #31b0d5;
     }
   </style>
 </head>
 <body>
-  <h1>ประวัติการเข้า-ออกคิว</h1>
-  <table>
+  <h1>ระบบจัดการคิว</h1>
+
+  <table id="queueTable">
     <thead>
       <tr>
         <th>หมายเลขคิว</th>
         <th>เวลาเข้า</th>
-        <th>เวลาให้บริการ</th>
-        <th>เวลาออก</th>
+        <th>ให้บริการ</th>
+        <th>ออกจากระบบ</th>
       </tr>
     </thead>
-    <tbody id="historyBody">
-      <tr><td colspan="4">⏳ กำลังโหลดข้อมูล...</td></tr>
+    <tbody id="queueBody">
+      <tr><td colspan="4">⏳ กำลังโหลด...</td></tr>
     </tbody>
   </table>
 
-  <button id="clearHistoryBtn">🗑 ล้างประวัติทั้งหมด</button>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import {
+      getDatabase, ref, onValue, update, remove, push, set
+    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
       databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "restaurant-waiting-list",
-      storageBucket: "restaurant-waiting-list.firebasestorage.app",
+      storageBucket: "restaurant-waiting-list.appspot.com",
       messagingSenderId: "60559914247",
       appId: "1:60559914247:web:76f651da714279231ac1a2",
       measurementId: "G-6H5ZK1J231"
@@ -81,42 +73,63 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const queueRef = ref(db, "queue");
     const historyRef = ref(db, "history");
-    const historyBody = document.getElementById("historyBody");
 
-    onValue(historyRef, (snapshot) => {
+    const queueBody = document.getElementById("queueBody");
+
+    // ฟังก์ชันแปลงเวลา
+    const formatTime = (d) => d.toLocaleTimeString("th-TH", { hour12: false });
+
+    onValue(queueRef, (snapshot) => {
       const data = snapshot.val();
-      historyBody.innerHTML = "";
+      queueBody.innerHTML = "";
+
       if (data) {
-        const sortedEntries = Object.entries(data).sort((a, b) => {
-          const aTime = a[1].timeIn || "";
-          const bTime = b[1].timeIn || "";
-          return aTime.localeCompare(bTime);
-        });
-        sortedEntries.forEach(([key, value]) => {
+        const entries = Object.entries(data);
+        entries.forEach(([key, value]) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${value.queueNumber || "-"}</td>
             <td>${value.timeIn || "-"}</td>
-            <td>${value.serviceStart || "-"}</td>
-            <td>${value.timeOut || "-"}</td>
+            <td><button onclick="startService('${key}')">เริ่มบริการ</button></td>
+            <td><button onclick="finishQueue('${key}')">ออกจากระบบ</button></td>
           `;
-          historyBody.appendChild(tr);
+          queueBody.appendChild(tr);
         });
       } else {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="4">ไม่มีข้อมูลประวัติ</td>`;
-        historyBody.appendChild(tr);
+        queueBody.innerHTML = `<tr><td colspan="4">ไม่มีคิว</td></tr>`;
       }
     });
 
-    document.getElementById("clearHistoryBtn").addEventListener("click", () => {
-      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด?")) {
-        remove(historyRef)
-          .then(() => alert("✅ ล้างประวัติเรียบร้อยแล้ว"))
-          .catch((err) => alert("❌ ล้างไม่สำเร็จ: " + err.message));
+    // 🟢 เริ่มบริการ: เพิ่มเวลาให้บริการ
+    window.startService = (key) => {
+      const now = new Date();
+      update(ref(db, "queue/" + key), {
+        serviceStart: formatTime(now)
+      });
+    };
+
+    // 🔴 ออกจากระบบ: ย้ายไป history และลบจาก queue
+    window.finishQueue = async (key) => {
+      const now = new Date();
+      const snapshot = await get(ref(db, "queue/" + key));
+      const value = snapshot.val();
+
+      if (value) {
+        const historyData = {
+          queueNumber: value.queueNumber || "-",
+          timeIn: value.timeIn || "-",
+          serviceStart: value.serviceStart || "-",
+          timeOut: formatTime(now)
+        };
+
+        const newHistoryRef = push(historyRef);
+        await set(newHistoryRef, historyData);
+        await remove(ref(db, "queue/" + key));
+        alert("✅ บันทึกลงประวัติเรียบร้อยแล้ว");
       }
-    });
+    };
   </script>
 </body>
 </html>
