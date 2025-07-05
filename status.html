@@ -1,3 +1,4 @@
+<!-- ✅ HTML ที่ถูกตัดปุ่มเพิ่มออก -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -29,7 +30,7 @@
       background-color: #f0f0f0;
     }
     button {
-      margin: 10px 10px;
+      margin: 10px;
       padding: 10px 20px;
       font-size: 1rem;
       border: none;
@@ -42,12 +43,6 @@
     }
     #clearHistoryBtn:hover {
       background-color: #c9302c;
-    }
-    #addExampleBtn {
-      background-color: #5cb85c;
-    }
-    #addExampleBtn:hover {
-      background-color: #4cae4c;
     }
   </style>
 </head>
@@ -67,15 +62,12 @@
     </tbody>
   </table>
 
-  <button id="addExampleBtn">➕ เพิ่มข้อมูลตัวอย่าง</button>
   <button id="clearHistoryBtn">🗑 ล้างประวัติทั้งหมด</button>
 
   <script type="module">
-    // ✅ Import Firebase SDK แบบ module
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove, push } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-    // ✅ Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
       authDomain: "restaurant-waiting-list.firebaseapp.com",
@@ -87,18 +79,15 @@
       measurementId: "G-6H5ZK1J231"
     };
 
-    // ✅ เริ่มต้น Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const historyRef = ref(db, "history");
     const historyBody = document.getElementById("historyBody");
 
-    // ✅ โหลดข้อมูลแบบเรียลไทม์
     onValue(historyRef, (snapshot) => {
       const data = snapshot.val();
       historyBody.innerHTML = "";
       if (data) {
-        // เรียงตามเวลาเข้า (ล่าสุดอยู่ล่าง)
         const sortedEntries = Object.entries(data).sort((a, b) => {
           const aTime = a[1].timeIn || "";
           const bTime = b[1].timeIn || "";
@@ -121,29 +110,12 @@
       }
     });
 
-    // ✅ ปุ่มล้างข้อมูลทั้งหมด
     document.getElementById("clearHistoryBtn").addEventListener("click", () => {
       if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด?")) {
         remove(historyRef)
           .then(() => alert("✅ ล้างประวัติเรียบร้อยแล้ว"))
           .catch((err) => alert("❌ ล้างไม่สำเร็จ: " + err.message));
       }
-    });
-
-    // ✅ ปุ่มเพิ่มข้อมูลตัวอย่าง
-    document.getElementById("addExampleBtn").addEventListener("click", () => {
-      const now = new Date();
-      const formatTime = (d) => d.toLocaleTimeString('th-TH', { hour12: false });
-      const exampleData = {
-        queueNumber: Math.floor(Math.random() * 1000).toString(),
-        timeIn: formatTime(now),
-        serviceStart: formatTime(new Date(now.getTime() + 2 * 60000)), // +2 นาที
-        timeOut: formatTime(new Date(now.getTime() + 5 * 60000))       // +5 นาที
-      };
-      const newRef = push(historyRef);
-      set(newRef, exampleData)
-        .then(() => console.log("✅ เพิ่มข้อมูลตัวอย่างสำเร็จ"))
-        .catch((err) => alert("❌ เพิ่มไม่สำเร็จ: " + err.message));
     });
   </script>
 </body>
