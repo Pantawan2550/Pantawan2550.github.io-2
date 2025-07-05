@@ -1,135 +1,137 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ระบบจัดการคิว</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ประวัติการเข้า-ออกคิว</title>
   <style>
     body {
-      font-family: sans-serif;
-      text-align: center;
-      background: #f9f9f9;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f5f5;
       padding: 20px;
+      text-align: center;
     }
     h1 {
       color: #333;
+      margin-bottom: 20px;
     }
     table {
-      width: 90%;
+      width: 100%;
+      max-width: 960px;
       margin: auto;
-      background: #fff;
       border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
+      padding: 12px;
+      border: 1px solid #ddd;
     }
-    button {
-      padding: 8px 16px;
-      background: #5bc0de;
+    th {
+      background-color: #28a745;
+      color: white;
+    }
+    td {
+      background-color: #fefefe;
+    }
+    #clearBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
       border: none;
+      border-radius: 5px;
+      background-color: #dc3545;
       color: white;
       cursor: pointer;
-      border-radius: 5px;
     }
-    button:hover {
-      background: #31b0d5;
+    #clearBtn:hover {
+      background-color: #c82333;
     }
   </style>
 </head>
 <body>
-  <h1>ระบบจัดการคิว</h1>
+  <h1>ประวัติการเข้า-ออกคิว</h1>
 
-  <table id="queueTable">
+  <table>
     <thead>
       <tr>
         <th>หมายเลขคิว</th>
         <th>เวลาเข้า</th>
-        <th>ให้บริการ</th>
-        <th>ออกจากระบบ</th>
+        <th>เริ่มให้บริการ</th>
+        <th>เวลาออก</th>
       </tr>
     </thead>
-    <tbody id="queueBody">
-      <tr><td colspan="4">⏳ กำลังโหลด...</td></tr>
-    </tbody>
+    <tbody id="historyBody"></tbody>
   </table>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import {
-      getDatabase, ref, onValue, update, remove, push, set
-    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+  <button id="clearBtn">🗑 ล้างข้อมูลทั้งหมด</button>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.1/firebase-database-compat.js"></script>
+
+  <script>
+    // ✅ Firebase config
     const firebaseConfig = {
-      apiKey: "AIzaSyB_9hLiA0GSkA-iG4EqDioC30zj9mxU3wQ",
-      authDomain: "restaurant-waiting-list.firebaseapp.com",
-      databaseURL: "https://restaurant-waiting-list-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "restaurant-waiting-list",
-      storageBucket: "restaurant-waiting-list.appspot.com",
-      messagingSenderId: "60559914247",
-      appId: "1:60559914247:web:76f651da714279231ac1a2",
-      measurementId: "G-6H5ZK1J231"
+      apiKey: "AIzaSyDNkrcksSvU6H4xYf9h5hvWYgHFYuy4igw",
+      authDomain: "queue-management-system-79b27.firebaseapp.com",
+      databaseURL: "https://queue-management-system-79b27-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "queue-management-system-79b27",
+      storageBucket: "queue-management-system-79b27.appspot.com",
+      messagingSenderId: "76344006886",
+      appId: "1:76344006886:web:a93cdee9adf70b43e30327"
     };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const historyRef = db.ref("history");
+    const historyBody = document.getElementById("historyBody");
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const queueRef = ref(db, "queue");
-    const historyRef = ref(db, "history");
-
-    const queueBody = document.getElementById("queueBody");
-
-    // ฟังก์ชันแปลงเวลา
-    const formatTime = (d) => d.toLocaleTimeString("th-TH", { hour12: false });
-
-    onValue(queueRef, (snapshot) => {
+    // ✅ โหลดข้อมูลแบบเรียลไทม์
+    historyRef.on("value", (snapshot) => {
       const data = snapshot.val();
-      queueBody.innerHTML = "";
+      historyBody.innerHTML = "";
 
       if (data) {
-        const entries = Object.entries(data);
-        entries.forEach(([key, value]) => {
+        const entries = Object.entries(data).sort((a, b) => {
+          const aTime = a[1].timeIn || "";
+          const bTime = b[1].timeIn || "";
+          return new Date(aTime) - new Date(bTime);
+        });
+
+        entries.forEach(([id, value]) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${value.queueNumber || "-"}</td>
-            <td>${value.timeIn || "-"}</td>
-            <td><button onclick="startService('${key}')">เริ่มบริการ</button></td>
-            <td><button onclick="finishQueue('${key}')">ออกจากระบบ</button></td>
+            <td>${value.number || "-"}</td>
+            <td>${formatTime(value.timeIn)}</td>
+            <td>${formatTime(value.startServiceTime)}</td>
+            <td>${formatTime(value.timeOut)}</td>
           `;
-          queueBody.appendChild(tr);
+          historyBody.appendChild(tr);
         });
       } else {
-        queueBody.innerHTML = `<tr><td colspan="4">ไม่มีคิว</td></tr>`;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="4">ยังไม่มีประวัติการเข้า-ออก</td>`;
+        historyBody.appendChild(tr);
       }
     });
 
-    // 🟢 เริ่มบริการ: เพิ่มเวลาให้บริการ
-    window.startService = (key) => {
-      const now = new Date();
-      update(ref(db, "queue/" + key), {
-        serviceStart: formatTime(now)
-      });
-    };
+    // ✅ ฟอร์แมตเวลาให้เป็นภาษาไทย
+    function formatTime(isoString) {
+      if (!isoString) return "-";
+      const d = new Date(isoString);
+      return d.toLocaleTimeString("th-TH", { hour12: false });
+    }
 
-    // 🔴 ออกจากระบบ: ย้ายไป history และลบจาก queue
-    window.finishQueue = async (key) => {
-      const now = new Date();
-      const snapshot = await get(ref(db, "queue/" + key));
-      const value = snapshot.val();
-
-      if (value) {
-        const historyData = {
-          queueNumber: value.queueNumber || "-",
-          timeIn: value.timeIn || "-",
-          serviceStart: value.serviceStart || "-",
-          timeOut: formatTime(now)
-        };
-
-        const newHistoryRef = push(historyRef);
-        await set(newHistoryRef, historyData);
-        await remove(ref(db, "queue/" + key));
-        alert("✅ บันทึกลงประวัติเรียบร้อยแล้ว");
+    // ✅ ล้างข้อมูลประวัติ พร้อม confirm 2 ชั้น
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลประวัติทั้งหมด?")) {
+        if (confirm("ยืนยันอีกครั้ง: ล้างข้อมูลทั้งหมด? ข้อมูลจะไม่สามารถกู้คืนได้")) {
+          historyRef.remove()
+            .then(() => alert("✅ ล้างข้อมูลประวัติเรียบร้อยแล้ว"))
+            .catch((err) => alert("❌ เกิดข้อผิดพลาด: " + err.message));
+        }
       }
-    };
+    });
   </script>
 </body>
 </html>
